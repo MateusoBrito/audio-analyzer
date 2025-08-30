@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import numpy as np
 from numpy.fft import fft, fftfreq
-import soundfile as sf
+#import soundfile as sf
 from datetime import datetime
 
 class AudioAnalyzerApp:
@@ -163,7 +163,7 @@ class AudioAnalyzerApp:
             return
             
         try:
-            self.raw_data, self.sample_rate = sf.read(arquivo, dtype='float32')
+            #self.raw_data, self.sample_rate = sf.read(arquivo, dtype='float32')
             self.current_file = os.path.basename(arquivo)
             self.btn_analisar.config(state=tk.NORMAL)
             self.log(f"Arquivo carregado: {self.current_file}")
