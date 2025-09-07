@@ -3,30 +3,26 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 
 class Graphic:
-    def __init__(self, frame):
+    def __init__(self, frame, grid_enabled=True):
+        self.grid_enabled = grid_enabled
+
         self.fig, (self.ax_left, self.ax_right) = plt.subplots(1, 2, figsize=(12, 5))
         self.fig.subplots_adjust(wspace=0.3)
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=frame)
         self.canvas.get_tk_widget().pack(fill=ctk.BOTH, expand=True)
 
-"""
-if __name__ == "__main__":
-    plt.switch_backend("Agg")
-    plt.style.use("default")
+        self.reset_axes()  # desenha eixos iniciais com a grade
 
-    app = ctk.CTk()
-    app.title("Sounder Analyzer")
-    app.geometry("900x500")
-    app.grid_columnconfigure(0, weight=1)
-    app.grid_rowconfigure((0, 1), weight=1)
-    app.config(bg="#f0f0f0")
+    def reset_axes(self):
+        for ax in [self.ax_left, self.ax_right]:
+            ax.clear()
+            ax.set_facecolor('white')
+            ax.set_xlabel("Frequência (Hz)", fontsize=10)
+            ax.set_ylabel("Amplitude (normalizada)", fontsize=10)
+            ax.grid(self.grid_enabled, which='both', linestyle=':', color='gray', alpha=0.5 if self.grid_enabled else 0.0)
+        
+        self.ax_left.set_title("Canal Esquerdo", fontsize=12, pad=10)
+        self.ax_right.set_title("Canal Direito", fontsize=12, pad=10)
+        self.canvas.draw()
 
-    graph_container = ctk.CTkFrame(app, fg_color="white", corner_radius=0)
-    graph_container.pack(fill=ctk.BOTH, expand=True)
-
-    # Área de gráficos
-    graphic = Graphic(graph_container)
-
-    app.mainloop()
-"""

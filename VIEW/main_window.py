@@ -40,6 +40,8 @@ class App(ctk.CTk):
         self.frequency_buttons(self.header)
         self.upload = self.upload_button(self.header)
         self.analyze = self.analyze_button(self.header)
+        self.sampling_scale_buttons(self.header)
+        self.grid_buttons(self.header)
 
     
     def upload_window(self):
@@ -75,34 +77,91 @@ class App(ctk.CTk):
         return btn
     
     def frequency_buttons(self, header):
-        # Controles de frequência
-        freq_frame = ctk.CTkFrame(header, fg_color='#f0f0f0')
-        freq_frame.grid(row=0, column=3, padx=20, pady=5, sticky="w")
-        
-        ctk.CTkLabel(freq_frame, text="Freq. Mín (Hz):",text_color="black").grid(row=0, column=0, sticky='e', padx=5, pady=2)
-        btn_entry_fi = ctk.CTkEntry(freq_frame, width=80, fg_color="#c2c2c2")
-        btn_entry_fi.insert(0, "20")
-        btn_entry_fi.grid(row=0, column=1, padx=5, pady=2)
+        fi = 20
+        fm = 20000
+        self.popup_visible = False
 
-        ctk.CTkLabel(freq_frame, text="Freq. Máx (Hz):",text_color="black").grid(row=1, column=0, sticky='e', padx=5, pady=2)
-        btn_entry_fm = ctk.CTkEntry(freq_frame, width=80, fg_color="#2b2b2b"  )
-        btn_entry_fm.insert(0, "20000")
-        btn_entry_fm.grid(row=1, column=1, padx=5, pady=2)
+        # Botão principal
+        self.freq_button = ctk.CTkButton(header, text="Frequência", command=self.open_freq_window)
+        self.freq_button.grid(row=0, column=3, padx=5, pady=10)
 
-        try:
-            fi_value = float(btn_entry_fi.get())
-            fm_value = float(btn_entry_fm.get())
-            self.controls.fi = fi_value
-            self.controls.fm = fm_value
-        except ValueError:
-            messagebox.showerror("Erro", "Valores de frequência inválidos. Usando valores padrão (20Hz - 20000Hz).")
-            
+        # Frame popup (flutuante)
+        self.popup_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="#e0e0e0")
+
+        # Sliders
+        ctk.CTkLabel(self.popup_frame, text="Freq. Min (Hz)", text_color="black").grid(row=0, column=0, pady=(5,0))
+        self.slider_min = ctk.CTkSlider(self.popup_frame, from_=20, to=20000, number_of_steps=1000)
+        self.slider_min.set(fi)
+        self.slider_min.grid(row=0, column=1, padx=10, pady=5)
+
+        ctk.CTkLabel(self.popup_frame, text="Freq. Max (Hz)" , text_color="black").grid(row=1, column=0, pady=(5,0))
+        self.slider_max = ctk.CTkSlider(self.popup_frame, from_=20, to=20000, number_of_steps=1000)
+        self.slider_max.set(fm)
+        self.slider_max.grid(row=1, column=1, padx=10, pady=5)
+
+        # Botão aplicar
+        self.apply_btn = ctk.CTkButton(self.popup_frame, text="Aplicar", command=self.apply_freq)
+        self.apply_btn.grid(row=2, column=0, columnspan=2, pady=10)
+
+
+    def open_freq_window(self):
+        if self.popup_visible:
+            self.popup_frame.place_forget()
+            self.popup_visible = False
+        else:
+            # Pega posição do botão em relação à janela
+            bx = self.freq_button.winfo_rootx() - self.winfo_rootx()
+            by = self.freq_button.winfo_rooty() - self.winfo_rooty() + self.freq_button.winfo_height()
+
+            # Mostra popup logo abaixo do botão
+            self.popup_frame.place(x=bx, y=by)
+            self.popup_visible = True
+
+    def apply_freq(self):
+        fi = self.slider_min.get()
+        fm = self.slider_max.get()
+        if fi >= fm:
+            messagebox.showerror("Erro", "Frequência mínima deve ser menor que a máxima.")
+            return
+        self.controls.fi = fi
+        self.controls.fm = fm
+        messagebox.showinfo("OK", f"Frequências aplicadas:\nMin: {fi:.1f} Hz\nMax: {fm:.1f} Hz")
+        self.open_freq_window()  # fecha após aplicar
+
+    def sampling_scale_buttons(self, header):
+        fft_frame = ctk.CTkFrame(header, corner_radius=5, fg_color="#F4F4F4")
+        fft_frame.grid(row=0, column=4, padx=5, pady=10)
+
+        ctk.CTkLabel(fft_frame, text="Amostragem FFT (x):", text_color="black").grid(row=0, column=0, sticky="e")
+
+        self.entry_fft_scale = ctk.CTkEntry(fft_frame, width=50)
+        self.entry_fft_scale.insert(0, "1")
+        self.entry_fft_scale.grid(row=0, column=1, padx=5)
+
+        apply_btn = ctk.CTkButton(fft_frame, text="Aplicar", command=self.controls.update_fft_scale, width=60)
+        apply_btn.grid(row=0, column=2, padx=5)
+
+    def grid_buttons(self, header):
+        self.controls.grid_btn = ctk.CTkButton(
+            self.header,
+            text="Grade: ON",
+            command=self.controls.toggle_grid,  # chama o método da Controls
+            width=80,
+            fg_color="#e1e1e1",
+            text_color="black",
+            hover_color="#d1d1d1",
+            corner_radius=5
+        )
+        self.controls.grid_btn.grid(row=0, column=5, padx=5, pady=10)
+
+
     def graphic_area(self):
         self.graph_container = ctk.CTkFrame(self, fg_color="white", corner_radius=0)
         self.graph_container.grid(row=1, column=0, sticky="nsew")
         gr = graphic.Graphic(self.graph_container)
         self.canvas = gr.canvas
         return gr
+
 
 app = App()
 app.mainloop()
