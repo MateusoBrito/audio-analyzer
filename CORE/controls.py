@@ -1,7 +1,10 @@
 import soundfile as sf
 import os
 import numpy as np
+import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
+from datetime import datetime
+
 
 class Controls:
     def __init__(self, graphic):
@@ -15,10 +18,21 @@ class Controls:
         self.fm = 20000
 
     def toggle_grid(self):
-        # Alterna o estado da grade no gráfico
         self.graphic.grid_enabled = not self.graphic.grid_enabled
-        self.graphic.reset_axes()
+
+        # Atualiza apenas a grade, sem limpar os dados
+        for ax in [self.graphic.ax_left, self.graphic.ax_right]:
+            ax.grid(
+                self.graphic.grid_enabled, 
+                which="both", 
+                linestyle=":", 
+                color="gray", 
+                alpha=0.5 if self.graphic.grid_enabled else 0.0
+            )
+
+        self.graphic.canvas.draw()
         print(f"Grade dos gráficos: {'Ativada' if self.graphic.grid_enabled else 'Desativada'}")
+
 
     def load_file(self, file_path):
         self.raw_data, self.sample_rate = sf.read(file_path, dtype="float32")
@@ -66,3 +80,59 @@ class Controls:
         self.fft_scale = new_scale
         if self.raw_data is not None:
             self.analyze_audio()
+    
+    def exportar_graficos(self, dir_path: str):
+        """
+        Exporta os gráficos para um diretório especificado.
+        
+        Args:
+            dir_path (str): O caminho da pasta onde os arquivos serão salvos.
+
+        Returns:
+            list: Uma lista com os nomes dos arquivos gerados.
+            
+        Raises:
+            ValueError: Se não houver gráficos para exportar.
+            Exception: Repassa outras exceções que podem ocorrer durante o salvamento.
+        """
+        if not self.plots:
+            # Em vez de um messagebox, levantamos um erro específico.
+            raise ValueError("Nenhum gráfico para exportar!")
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # Executa a lógica de salvamento
+        self._salvar_um_grafico(dir_path, timestamp, "esquerdo", 1)
+        self._salvar_um_grafico(dir_path, timestamp, "direito", 2)
+        
+        # Retorna os nomes dos arquivos para a interface usar
+        nomes_arquivos = [
+            f"esquerdo_{timestamp}.png",
+            f"direito_{timestamp}.png"
+        ]
+        return nomes_arquivos
+
+    def _salvar_um_grafico(self, dir_path, timestamp, nome_canal, indice_dados):
+        """
+        Cria e salva a imagem de um único canal.
+        """
+        fig, ax = plt.subplots(figsize=(10, 5), dpi=300)
+        
+        for plot_data in self.plots:
+            # Pega os dados de self.plots
+            freq, _, _, label, color = plot_data
+            dados_canal = plot_data[indice_dados]
+            ax.plot(freq, dados_canal, color=color, label=label)
+        
+        # Acessa o objeto graphic para pegar o status da grade
+        ax.grid(self.graphic.grid_enabled, which='both', linestyle=':', color='gray')
+        ax.set_title(f"Canal {nome_canal.capitalize()}")
+        ax.set_xlabel("Frequência (Hz)")
+        ax.set_ylabel("Amplitude (normalizada)")
+        ax.legend()
+        
+        nome_arquivo = f"{nome_canal}_{timestamp}.png"
+        caminho_completo = os.path.join(dir_path, nome_arquivo)
+        
+        fig.savefig(caminho_completo, bbox_inches='tight', dpi=300)
+        plt.close(fig)
