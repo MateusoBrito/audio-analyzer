@@ -1,191 +1,173 @@
 import customtkinter as ctk
 from PIL import Image
 from CORE import controls, graphic
-from tkinter import filedialog, messagebox, ttk
+from tkinter import filedialog, messagebox
+
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
+
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Sound Analyzer")
-        self.geometry("900x500")
-        self.config(bg='#f0f0f0')
+        self.geometry("1100x600")
 
-        # Configure grid da janela principal
-        self.grid_rowconfigure(1, weight=1)
-        self.grid_columnconfigure(0, weight=1)
-        
+        # Estrutura principal: 3 colunas
+        self.grid_columnconfigure(0, weight=0)   # Sidebar esquerda
+        self.grid_columnconfigure(1, weight=1)   # Área de gráficos
+        self.grid_columnconfigure(2, weight=0)   # Sidebar direita
+        self.grid_rowconfigure(0, weight=1)
+
         self.setup_ui()
 
     def setup_ui(self):
-        self.graphic = self.graphic_area()
+        # --- Sidebar esquerda ---
+        self.sidebar_left = ctk.CTkFrame(self, fg_color="#1e1e1e", width=150, corner_radius=0)
+        self.sidebar_left.grid(row=0, column=0, sticky="nswe")
+        self.build_sidebar_left()
+
+        # --- Área central (gráficos) ---
+        self.graph_container = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=0)
+        self.graph_container.grid(row=0, column=1, sticky="nsew")
+        self.build_graph_area()
+        self.graphic = self.init_graphic_area()
         self.controls = controls.Controls(self.graphic)
-        self.header_area()
 
-    def header_area(self):
-        self.header = ctk.CTkFrame(self, fg_color="#F4F4F4", corner_radius=0)
-        self.header.grid(row=0, column=0, sticky="ew")
-
-        self.header.grid_columnconfigure((1, 2, 3, 4, 5, 6), weight=1) 
-
-        img = ctk.CTkImage(
-            light_image=Image.open("images/Logo.png"),
-            dark_image=Image.open("images/Logo.png"),
-            size=(60, 30)
-        )
-
-        label_img = ctk.CTkLabel(self.header, image=img, text="")
-        label_img.grid(row=0, column=0, padx=15, pady=5)
-
-        self.frequency_buttons(self.header)
-        self.upload = self.upload_button(self.header)
-        self.analyze = self.analyze_button(self.header)
-        self.sampling_scale_buttons(self.header)
-        self.grid_buttons(self.header)
-        self.export_button(self.header)
-
-    
-    def upload_window(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Arquivos WAV", "*.wav")])
-        if not file_path:
-            return
-        try:
-            self.controls.load_file(file_path)
-            self.analyze.configure(state=ctk.NORMAL)
-            self.analyze_audio()
-        except Exception as e:
-            raise RuntimeError(f"Erro ao carregar áudio: {str(e)}")
-        
-
-    def style_buttons(self):
-        """Retorna um dicionário com o estilo padrão para botões transparentes."""
-        return {
-            "fg_color": "transparent",
-            "text_color": "black",
-            "hover_color": "#E5E5E5",
-            "corner_radius": 5
-        }
-
-    def upload_button(self, header):
-        btn_style = self.style_buttons()
-        btn = ctk.CTkButton(
-            header,
-            text="Carregar WAV",
-            command=self.upload_window,
-            **btn_style
-        )
-        btn.grid(row=0, column=1, padx=5, pady=10, sticky="ew")
-        return btn
-    
-    def analyze_audio(self):
-        try:
-            self.controls.analyze_audio()
-        except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao analisar áudio: {str(e)}")
-
-    def analyze_button(self, header):
-        btn_style = self.style_buttons()
-        btn = ctk.CTkButton(header, text="Analisar", command=self.analyze_audio, state=ctk.DISABLED,**btn_style)
-        btn.grid(row=0, column=2, padx=5, pady=10,sticky = "ew")
-        return btn
-    
-    def frequency_buttons(self, header):
-        fi = 20
-        fm = 20000
-        self.popup_visible = False
-
-        btn_style = self.style_buttons()
-        self.freq_button = ctk.CTkButton(header, text="Frequência", command=self.open_freq_window, **btn_style)
-        self.freq_button.grid(row=0, column=3, padx=5, pady=10,sticky = "ew")
-
-        # Frame popup (flutuante)
-        self.popup_frame = ctk.CTkFrame(self, corner_radius=10, fg_color="#e0e0e0")
-
-        # Sliders
-        ctk.CTkLabel(self.popup_frame, text="Freq. Min (Hz)", text_color="black").grid(row=0, column=0, pady=(5,0))
-        self.slider_min = ctk.CTkSlider(self.popup_frame, from_=20, to=20000, number_of_steps=1000)
-        self.slider_min.set(fi)
-        self.slider_min.grid(row=0, column=1, padx=10, pady=5)
-
-        ctk.CTkLabel(self.popup_frame, text="Freq. Max (Hz)" , text_color="black").grid(row=1, column=0, pady=(5,0))
-        self.slider_max = ctk.CTkSlider(self.popup_frame, from_=20, to=20000, number_of_steps=1000)
-        self.slider_max.set(fm)
-        self.slider_max.grid(row=1, column=1, padx=10, pady=5)
-
-        # Botão aplicar
-        self.apply_btn = ctk.CTkButton(self.popup_frame, text="Aplicar", command=self.apply_freq,
-                                      fg_color="#0078D7", text_color="white", hover_color="#106EBE")
-        self.apply_btn.grid(row=2, column=0, columnspan=2, pady=10)
+        # --- Sidebar direita ---
+        self.sidebar_right = ctk.CTkFrame(self, fg_color="#1e1e1e", width=180, corner_radius=0)
+        self.sidebar_right.grid(row=0, column=2, sticky="nswe")
+        self.build_sidebar_right()
 
 
-    def open_freq_window(self):
-        if self.popup_visible:
-            self.popup_frame.place_forget()
-            self.popup_visible = False
-        else:
-            # Pega posição do botão em relação à janela
-            bx = self.freq_button.winfo_rootx() - self.winfo_rootx()
-            by = self.freq_button.winfo_rooty() - self.winfo_rooty() + self.freq_button.winfo_height()
+    # ---------- Sidebar Esquerda ----------
+    def build_sidebar_left(self):
+        buttons = [
+            ("📂 Carregar", self.upload_window),
+            ("📊 Analisar", self.analyze_audio),
+            ("💾 Exportar", self._lidar_com_exportacao),
+        ]
 
-            # Mostra popup logo abaixo do botão
-            self.popup_frame.place(x=bx, y=by)
-            self.popup_visible = True
+        for i, (text, cmd) in enumerate(buttons):
+            btn = ctk.CTkButton(
+                self.sidebar_left,
+                text=text,
+                command=cmd,
+                fg_color="#2b2b2b",
+                text_color="white",
+                hover_color="#5e5e5e",
+                height=50,  # mais altos
+                corner_radius=25,
+                font=ctk.CTkFont(size=15, weight="bold"),  # fonte maior
+            )
+            btn.pack(fill="x", padx=15, pady=(12 if i == 0 else 10, 0), anchor="n")
 
-    def apply_freq(self):
-        fi = self.slider_min.get()
-        fm = self.slider_max.get()
+
+
+    # ---------- Área de gráficos ----------
+    def build_graph_area(self):
+        self.graph_container.grid_rowconfigure((0, 1), weight=1)
+        self.graph_container.grid_columnconfigure(0, weight=1)
+
+        self.frame_fft = ctk.CTkFrame(self.graph_container, fg_color="#2b2b2b")
+        self.frame_fft.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
+
+        self.frame_wave = ctk.CTkFrame(self.graph_container, fg_color="#202020")
+        self.frame_wave.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
+
+    def apply_frequency(self):
+        fi = self.freq_min_slider.get()
+        fm = self.freq_max_slider.get()
         if fi >= fm:
             messagebox.showerror("Erro", "Frequência mínima deve ser menor que a máxima.")
             return
         self.controls.fi = fi
         self.controls.fm = fm
         self.controls.analyze_audio()
-        messagebox.showinfo("OK", f"Frequências aplicadas:\nMin: {fi:.1f} Hz\nMax: {fm:.1f} Hz")
-        self.open_freq_window()  # fecha após aplicar
+        messagebox.showinfo("Frequências aplicadas", f"Min: {fi:.1f} Hz\nMax: {fm:.1f} Hz")
 
-    def sampling_scale_buttons(self, header):
-        fft_frame = ctk.CTkFrame(header, corner_radius=5, fg_color="#F4F4F4")
-        fft_frame.grid(row=0, column=4, padx=5, pady=10, sticky="ew")
 
-        fft_frame.grid_columnconfigure(1, weight=1) 
-        fft_frame.grid_columnconfigure(2, weight=1) 
+    def build_sidebar_right(self):
+        # Modo escuro
+        self.dark_mode_switch = ctk.CTkSwitch(self.sidebar_right, text="Modo Escuro")
+        self.dark_mode_switch.pack(pady=10, padx=10)
 
-        ctk.CTkLabel(fft_frame, text="Amostragem FFT (x):", text_color="black").grid(row=0, column=0, sticky="e")
+        # --- Frequência ---
+        ctk.CTkLabel(self.sidebar_right, text="Frequência (Hz)").pack(anchor="w", padx=10, pady=(10,0))
 
-        self.entry_fft_scale = ctk.CTkEntry(fft_frame, width=50)
-        self.entry_fft_scale.insert(0, "1")
-        self.entry_fft_scale.grid(row=0, column=1, padx=5)
+        # Frame para freq min
+        freq_min_frame = ctk.CTkFrame(self.sidebar_right, fg_color="transparent")
+        freq_min_frame.pack(fill="x", padx=10, pady=5)
+        self.freq_min_slider = ctk.CTkSlider(freq_min_frame, from_=20, to=20000, number_of_steps=1000, command=self.update_freq_labels)
+        self.freq_min_slider.set(20)
+        self.freq_min_slider.pack(side="left", fill="x", expand=True)
+        self.freq_min_label = ctk.CTkLabel(freq_min_frame, text=f"{self.freq_min_slider.get():.0f} Hz", width=60)
+        self.freq_min_label.pack(side="right", padx=5)
 
-        apply_btn = ctk.CTkButton(
-            fft_frame, 
-            text="Aplicar", 
-            command=lambda: self.controls.update_fft_scale(int(self.entry_fft_scale.get())),
-            fg_color="#0078D7", text_color="white", hover_color="#106EBE", width=60
-        )
-        apply_btn.grid(row=0, column=2, padx=5, sticky="ew")
+        # Frame para freq max
+        freq_max_frame = ctk.CTkFrame(self.sidebar_right, fg_color="transparent")
+        freq_max_frame.pack(fill="x", padx=10, pady=5)
+        self.freq_max_slider = ctk.CTkSlider(freq_max_frame, from_=20, to=20000, number_of_steps=1000, command=self.update_freq_labels)
+        self.freq_max_slider.set(20000)
+        self.freq_max_slider.pack(side="left", fill="x", expand=True)
+        self.freq_max_label = ctk.CTkLabel(freq_max_frame, text=f"{self.freq_max_slider.get():.0f} Hz", width=60)
+        self.freq_max_label.pack(side="right", padx=5)
 
-    def grid_buttons(self, header):
-        btn_style = self.style_buttons()
-        self.controls.grid_btn = ctk.CTkButton(
-            self.header,
+        ctk.CTkButton(
+            self.sidebar_right, 
+            text="Aplicar Frequência", 
+            command=self.apply_frequency
+        ).pack(pady=10, padx=10, fill="x")
+
+        # --- Amostragem ---
+        ctk.CTkLabel(self.sidebar_right, text="Amostragem FFT (x)").pack(anchor="w", padx=10, pady=(10,0))
+        self.fft_scale_entry = ctk.CTkEntry(self.sidebar_right)
+        self.fft_scale_entry.insert(0, "1")
+        self.fft_scale_entry.pack(fill="x", padx=10, pady=5)
+
+        ctk.CTkButton(
+            self.sidebar_right,
+            text="Aplicar Amostragem",
+            command=lambda: self.controls.update_fft_scale(int(self.fft_scale_entry.get()))
+        ).pack(pady=10, padx=10, fill="x")
+
+        # --- Grade ---
+        self.grid_btn = ctk.CTkButton(
+            self.sidebar_right,
             text="Grade: ON",
-            command=self.controls.toggle_grid,
-            **btn_style
+            command=self.controls.toggle_grid
         )
-        self.controls.grid_btn.grid(row=0, column=5, padx=5, pady=10, sticky="ew")
-    
-    def export_button(self, header):
-        btn_style = self.style_buttons()
-        button = ctk.CTkButton(
-            master=header,
-            text="Exportar Gráficos",
-            command=self._lidar_com_exportacao,
-            **btn_style
-        )
-        button.grid(row=0, column=6, padx=5, pady=10, sticky="ew")
-        return button
+        self.grid_btn.pack(pady=10, padx=10, fill="x")
+
+    # Função para atualizar os labels conforme o slider se move
+    def update_freq_labels(self, _=None):
+        self.freq_min_label.configure(text=f"{self.freq_min_slider.get():.0f} Hz")
+        self.freq_max_label.configure(text=f"{self.freq_max_slider.get():.0f} Hz")
+
+
+
+    # ---------- Funções de Controle ----------
+    def upload_window(self):
+        file_path = filedialog.askopenfilename(filetypes=[("Arquivos WAV", "*.wav")])
+        if not file_path:
+            return
+        try:
+            self.controls.load_file(file_path)
+            messagebox.showinfo("Arquivo carregado", f"{file_path}")
+            self.analyze_audio()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao carregar áudio: {str(e)}")
+
+    def analyze_audio(self):
+        try:
+            self.controls.analyze_audio()
+        except Exception as e:
+            messagebox.showerror("Erro", f"Erro ao analisar áudio: {str(e)}")
+
+    def apply_fft(self):
+        fft_value = int(self.fft_slider.get())
+        messagebox.showinfo("FFT", f"Resolução FFT definida para {fft_value}")
 
     def _lidar_com_exportacao(self):
         try:
@@ -194,9 +176,9 @@ class App(ctk.CTk):
                 return
 
             nomes_arquivos = self.controls.exportar_graficos(dir_path)
-            
+
             messagebox.showinfo(
-                "Sucesso", 
+                "Sucesso",
                 "Gráficos exportados como:\n" + "\n".join(nomes_arquivos)
             )
 
@@ -205,15 +187,13 @@ class App(ctk.CTk):
         except Exception as e:
             messagebox.showerror("Erro Inesperado", f"Ocorreu um erro durante a exportação:\n{str(e)}")
 
-    def graphic_area(self):
-        self.graph_container = ctk.CTkFrame(self, fg_color="white", corner_radius=0)
-        self.graph_container.grid(row=1, column=0, sticky="nsew")
-        self.graph_container.grid_rowconfigure(0, weight=1)
-        self.graph_container.grid_columnconfigure(0, weight=1)
-
+    def init_graphic_area(self):
         gr = graphic.Graphic(self.graph_container)
         self.canvas = gr.canvas
         return gr
+
+
+
 
 
 app = App()
