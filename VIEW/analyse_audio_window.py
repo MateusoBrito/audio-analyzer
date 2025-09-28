@@ -1,18 +1,17 @@
 import customtkinter as ctk
+import sys
+import os
 from PIL import Image
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from CORE import controls, graphic
 from tkinter import filedialog, messagebox
-from VIEW.controls_side_bar import ControlsSidebar 
+from VIEW.controls_side_bar import ControlsSidebar
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("dark-blue")
-
-
-class App(ctk.CTk):
-    def __init__(self):
-        super().__init__()
-        self.title("Sound Analyzer")
-        self.geometry("1600x900")
+class AnalysisScreen(ctk.CTkFrame):
+    def __init__(self, parent, controller):
+        super().__init__(parent)
+        self.controller = controller
 
         self.load_icons()
 
@@ -43,10 +42,8 @@ class App(ctk.CTk):
         self.sidebar_right.pack_propagate(False)
         self.controls_sidebar = ControlsSidebar(self.sidebar_right, self.controls)
 
-
     def load_icons(self):
         try:
-            # Carrega a imagem do arquivo e a converte para um objeto CTkImage
             self.icon_upload = ctk.CTkImage(Image.open("images/upload.png"), size=(24, 24))
             self.icon_analyze = ctk.CTkImage(Image.open("images/Graph.png"), size=(24, 24))
             self.icon_export = ctk.CTkImage(Image.open("images/Export.png"), size=(24, 24))
@@ -54,11 +51,11 @@ class App(ctk.CTk):
             self.icon_Logo = ctk.CTkImage(Image.open("images/Logo.png"), size=(101, 50))
         except FileNotFoundError as e:
             print(f"Erro ao carregar ícones: {e}")
-            self.icon_upload = self.icon_analyze = self.icon_export = None
+            messagebox.showerror("Erro de Ícone", f"Não foi possível encontrar um ícone: {e}")
+            self.icon_upload = self.icon_analyze = self.icon_export = self.icon_menu = self.icon_Logo = None
 
     # ---------- Sidebar Esquerda ----------
     def build_sidebar_left(self):
-
         logo_label = ctk.CTkLabel(
             self.sidebar_left,
             text="", 
@@ -67,10 +64,10 @@ class App(ctk.CTk):
         logo_label.pack(pady=(20, 30), padx=10, anchor="center")
 
         buttons_data = {
-            "  Carregar": (self.icon_upload, self.upload_window),
-            "  Analisar": (self.icon_analyze, self.analyze_audio),
-            "  Exportar": (self.icon_export, self._lidar_com_exportacao),
-            "  Menu": (self.icon_menu, self),
+            "   Carregar": (self.icon_upload, self.upload_window),
+            "   Analisar": (self.icon_analyze, self.analyze_audio),
+            "   Exportar": (self.icon_export, self._lidar_com_exportacao),
+            "   Menu": (self.icon_menu, lambda: self.controller.show_frame("WelcomeScreen")), # <- VOLTA PARA O MENU
         }
 
         for i, (text, (icon, cmd)) in enumerate(buttons_data.items()):
@@ -78,20 +75,17 @@ class App(ctk.CTk):
                 self.sidebar_left,
                 text=text,
                 command=cmd,
-                image=icon,             # <- Define a imagem do botão
-                compound="left",        # <- Coloca a imagem à esquerda do texto
-                anchor="w",             # <- Alinha o conteúdo (ícone + texto) à esquerda
+                image=icon,
+                compound="left",
+                anchor="w",
                 fg_color="#2b2b2b",
                 text_color="white",
                 hover_color="#5e5e5e",
                 height=50,
-                corner_radius=25,
+                corner_radius=10,
                 font=ctk.CTkFont(size=15, weight="bold"),
             )
-            # O pady do primeiro botão é um pouco maior para dar espaço do topo
             btn.pack(fill="x", padx=15, pady=(15 if i == 0 else 10), anchor="n")
-
-
 
     # ---------- Área de gráficos ----------
     def build_graph_area(self):
@@ -104,15 +98,14 @@ class App(ctk.CTk):
         self.frame_wave = ctk.CTkFrame(self.graph_container, fg_color="#2b2b2b")
         self.frame_wave.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
-
     # ---------- Funções de Controle ----------
     def upload_window(self):
         file_path = filedialog.askopenfilename(filetypes=[("Arquivos WAV", "*.wav")])
         if not file_path:
             return
+        
         try:
-            self.controls.load_file(file_path)
-            messagebox.showinfo("Arquivo carregado", f"{file_path}")
+            self.controls.load_file(file_path) 
             self.analyze_audio()
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar áudio: {str(e)}")
@@ -139,7 +132,6 @@ class App(ctk.CTk):
                 "Sucesso",
                 "Gráficos exportados como:\n" + "\n".join(nomes_arquivos)
             )
-
         except ValueError as e:
             messagebox.showwarning("Aviso", str(e))
         except Exception as e:
@@ -151,7 +143,3 @@ class App(ctk.CTk):
         widget = self.canvas.get_tk_widget()
         widget.configure(bg=self.frame_fft.cget("fg_color"), highlightthickness=0)
         return gr
-
-
-app = App()
-app.mainloop()

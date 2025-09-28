@@ -1,5 +1,6 @@
 from tkinter import messagebox
 import customtkinter as ctk
+from VIEW.rename_dialog import RenameDialog
 
 class ControlsSidebar:
     """
@@ -49,26 +50,38 @@ class ControlsSidebar:
 
         (max_frame, self.freq_max_slider, self.freq_max_entry) = self._create_slider_with_entry("Máx:", 20, 20000, "Hz")
         max_frame.pack(fill="x", padx=8, pady=5)
-        
-        btn = self._create_primary_button("Aplicar Filtro", self._apply_frequency)
-        btn.pack(pady=10, padx=8, fill="x")
 
     def _build_fft_controls(self):
         self._create_section_header("Amostragem FFT").pack(anchor="w", padx=8)
         
         self.fft_scale_entry = self._create_entry("1")
         self.fft_scale_entry.pack(fill="x", padx=10, pady=5)
-        
-        command = lambda: self.controls.update_fft_scale(int(self.fft_scale_entry.get()))
-        btn = self._create_primary_button("Aplicar Amostragem", command)
-        btn.pack(pady=10, padx=8, fill="x")
 
     def _build_action_buttons(self):
+        apply_btn = self._create_primary_button("Aplicar Mudanças", self._apply_all_changes)
+        apply_btn.pack(pady=(5, 10), padx=8, fill="x")
+
+        rename_btn = self._create_secondary_button("Trocar Nomes", self._open_rename_dialog)
+        rename_btn.pack(pady=(5, 10), padx=8, fill="x")
+
         self.grid_btn = self._create_secondary_button("Grade: ON", self.controls.toggle_grid)
         self.grid_btn.pack(pady=(5, 10), padx=8, fill="x")
 
         btn_clear = self._create_secondary_button("Limpar Gráficos", self._limpar_button, hover_color="#C75450")
         btn_clear.pack(pady=5, padx=8, fill="x")
+
+    def _open_rename_dialog(self):
+        """Abre a janela para renomear todos os plots de uma vez."""
+        current_plots = self.controls.plots
+        if not current_plots:
+            messagebox.showinfo("Aviso", "Nenhum gráfico carregado para renomear.")
+            return
+
+        dialog = RenameDialog(plots_data=current_plots)
+        new_names = dialog.get_names() # Abre a janela e espera
+
+        if new_names:
+            self.controls.update_all_plot_labels(new_names)
 
     # --- 3. FÁBRICAS DE WIDGETS ESTILIZADOS ---
 
@@ -147,20 +160,39 @@ class ControlsSidebar:
 
     # --- Métodos de Callback (Lógica) ---
 
-    def _update_freq_labels(self, _=None):
-        self.freq_min_label.configure(text=f"{self.freq_min_slider.get():.0f} Hz")
-        self.freq_max_label.configure(text=f"{self.freq_max_slider.get():.0f} Hz")
+    def _apply_all_changes(self):
+        """Lê TODOS os controles, valida, atualiza a lógica e redesenha."""
+        try:
+            # --- Etapa 1: Ler e validar todos os valores ---
+            fi = float(self.freq_min_entry.get())
+            fm = float(self.freq_max_entry.get())
+            fft_scale = int(self.fft_scale_entry.get())
 
-    def _apply_frequency(self):
-        fi = self.freq_min_slider.get()
-        fm = self.freq_max_slider.get()
-        if fi >= fm:
-            messagebox.showerror("Erro", "Frequência mínima deve ser menor que a máxima.")
-            return
-        self.controls.fi = fi
-        self.controls.fm = fm
-        self.controls.analyze_audio()
-        messagebox.showinfo("Frequências aplicadas", f"Min: {fi:.1f} Hz\nMax: {fm:.1f} Hz")
+            if fi >= fm:
+                messagebox.showerror("Erro", "A frequência mínima deve ser menor que a máxima.")
+                return
+            if fft_scale <= 0:
+                messagebox.showwarning("Valor Inválido", "Amostragem deve ser um inteiro > 0.")
+                return
+
+            # --- Etapa 2: Atualizar todos os valores na classe Controls ---
+            self.controls.fi = fi
+            self.controls.fm = fm
+            self.controls.fft_scale = fft_scale
+
+            # Sincroniza os sliders com os valores digitados
+            self.freq_min_slider.set(fi)
+            self.freq_max_slider.set(fm)
+
+            self.controls.analyze_audio()
+            
+            messagebox.showinfo("Sucesso", "Mudanças aplicadas e gráficos atualizados.")
+
+        except ValueError:
+            messagebox.showerror("Erro de Entrada", "Verifique se todos os campos contêm números válidos.")
+        except Exception as e:
+            messagebox.showerror("Erro Inesperado", f"Ocorreu um erro: {e}")
+
 
     def _limpar_button(self):
         try:

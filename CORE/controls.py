@@ -83,19 +83,6 @@ class Controls:
             self.analyze_audio()
     
     def exportar_graficos(self, dir_path: str):
-        """
-        Exporta os gráficos para um diretório especificado.
-        
-        Args:
-            dir_path (str): O caminho da pasta onde os arquivos serão salvos.
-
-        Returns:
-            list: Uma lista com os nomes dos arquivos gerados.
-            
-        Raises:
-            ValueError: Se não houver gráficos para exportar.
-            Exception: Repassa outras exceções que podem ocorrer durante o salvamento.
-        """
         if not self.plots:
             # Em vez de um messagebox, levantamos um erro específico.
             raise ValueError("Nenhum gráfico para exportar!")
