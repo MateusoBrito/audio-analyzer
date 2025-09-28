@@ -2,17 +2,19 @@ import customtkinter as ctk
 from PIL import Image
 from CORE import controls, graphic
 from tkinter import filedialog, messagebox
-
+from VIEW.controls_side_bar import ControlsSidebar 
 
 ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+ctk.set_default_color_theme("dark-blue")
 
 
 class App(ctk.CTk):
     def __init__(self):
         super().__init__()
         self.title("Sound Analyzer")
-        self.geometry("1100x600")
+        self.geometry("1600x900")
+
+        self.load_icons()
 
         # Estrutura principal: 3 colunas
         self.grid_columnconfigure(0, weight=0)   # Sidebar esquerda
@@ -29,39 +31,65 @@ class App(ctk.CTk):
         self.build_sidebar_left()
 
         # --- Área central (gráficos) ---
-        self.graph_container = ctk.CTkFrame(self, fg_color="#2b2b2b", corner_radius=0)
+        self.graph_container = ctk.CTkFrame(self, fg_color="#1e1e1e", corner_radius=0)
         self.graph_container.grid(row=0, column=1, sticky="nsew")
         self.build_graph_area()
         self.graphic = self.init_graphic_area()
         self.controls = controls.Controls(self.graphic)
 
         # --- Sidebar direita ---
-        self.sidebar_right = ctk.CTkFrame(self, fg_color="#1e1e1e", width=180, corner_radius=0)
+        self.sidebar_right = ctk.CTkFrame(self, fg_color="#1e1e1e", width=220, corner_radius=0)
         self.sidebar_right.grid(row=0, column=2, sticky="nswe")
-        self.build_sidebar_right()
+        self.sidebar_right.pack_propagate(False)
+        self.controls_sidebar = ControlsSidebar(self.sidebar_right, self.controls)
 
+
+    def load_icons(self):
+        try:
+            # Carrega a imagem do arquivo e a converte para um objeto CTkImage
+            self.icon_upload = ctk.CTkImage(Image.open("images/upload.png"), size=(24, 24))
+            self.icon_analyze = ctk.CTkImage(Image.open("images/Graph.png"), size=(24, 24))
+            self.icon_export = ctk.CTkImage(Image.open("images/Export.png"), size=(24, 24))
+            self.icon_menu = ctk.CTkImage(Image.open("images/Home.png"), size=(24, 24))
+            self.icon_Logo = ctk.CTkImage(Image.open("images/Logo.png"), size=(101, 50))
+        except FileNotFoundError as e:
+            print(f"Erro ao carregar ícones: {e}")
+            self.icon_upload = self.icon_analyze = self.icon_export = None
 
     # ---------- Sidebar Esquerda ----------
     def build_sidebar_left(self):
-        buttons = [
-            ("📂 Carregar", self.upload_window),
-            ("📊 Analisar", self.analyze_audio),
-            ("💾 Exportar", self._lidar_com_exportacao),
-        ]
 
-        for i, (text, cmd) in enumerate(buttons):
+        logo_label = ctk.CTkLabel(
+            self.sidebar_left,
+            text="", 
+            image=self.icon_Logo
+        )
+        logo_label.pack(pady=(20, 30), padx=10, anchor="center")
+
+        buttons_data = {
+            "  Carregar": (self.icon_upload, self.upload_window),
+            "  Analisar": (self.icon_analyze, self.analyze_audio),
+            "  Exportar": (self.icon_export, self._lidar_com_exportacao),
+            "  Menu": (self.icon_menu, self),
+        }
+
+        for i, (text, (icon, cmd)) in enumerate(buttons_data.items()):
             btn = ctk.CTkButton(
                 self.sidebar_left,
                 text=text,
                 command=cmd,
+                image=icon,             # <- Define a imagem do botão
+                compound="left",        # <- Coloca a imagem à esquerda do texto
+                anchor="w",             # <- Alinha o conteúdo (ícone + texto) à esquerda
                 fg_color="#2b2b2b",
                 text_color="white",
                 hover_color="#5e5e5e",
-                height=50,  # mais altos
+                height=50,
                 corner_radius=25,
-                font=ctk.CTkFont(size=15, weight="bold"),  # fonte maior
+                font=ctk.CTkFont(size=15, weight="bold"),
             )
-            btn.pack(fill="x", padx=15, pady=(12 if i == 0 else 10, 0), anchor="n")
+            # O pady do primeiro botão é um pouco maior para dar espaço do topo
+            btn.pack(fill="x", padx=15, pady=(15 if i == 0 else 10), anchor="n")
 
 
 
@@ -73,78 +101,8 @@ class App(ctk.CTk):
         self.frame_fft = ctk.CTkFrame(self.graph_container, fg_color="#2b2b2b")
         self.frame_fft.grid(row=0, column=0, sticky="nsew", padx=5, pady=5)
 
-        self.frame_wave = ctk.CTkFrame(self.graph_container, fg_color="#202020")
+        self.frame_wave = ctk.CTkFrame(self.graph_container, fg_color="#2b2b2b")
         self.frame_wave.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
-
-    def apply_frequency(self):
-        fi = self.freq_min_slider.get()
-        fm = self.freq_max_slider.get()
-        if fi >= fm:
-            messagebox.showerror("Erro", "Frequência mínima deve ser menor que a máxima.")
-            return
-        self.controls.fi = fi
-        self.controls.fm = fm
-        self.controls.analyze_audio()
-        messagebox.showinfo("Frequências aplicadas", f"Min: {fi:.1f} Hz\nMax: {fm:.1f} Hz")
-
-
-    def build_sidebar_right(self):
-        # Modo escuro
-        self.dark_mode_switch = ctk.CTkSwitch(self.sidebar_right, text="Modo Escuro")
-        self.dark_mode_switch.pack(pady=10, padx=10)
-
-        # --- Frequência ---
-        ctk.CTkLabel(self.sidebar_right, text="Frequência (Hz)").pack(anchor="w", padx=10, pady=(10,0))
-
-        # Frame para freq min
-        freq_min_frame = ctk.CTkFrame(self.sidebar_right, fg_color="transparent")
-        freq_min_frame.pack(fill="x", padx=10, pady=5)
-        self.freq_min_slider = ctk.CTkSlider(freq_min_frame, from_=20, to=20000, number_of_steps=1000, command=self.update_freq_labels)
-        self.freq_min_slider.set(20)
-        self.freq_min_slider.pack(side="left", fill="x", expand=True)
-        self.freq_min_label = ctk.CTkLabel(freq_min_frame, text=f"{self.freq_min_slider.get():.0f} Hz", width=60)
-        self.freq_min_label.pack(side="right", padx=5)
-
-        # Frame para freq max
-        freq_max_frame = ctk.CTkFrame(self.sidebar_right, fg_color="transparent")
-        freq_max_frame.pack(fill="x", padx=10, pady=5)
-        self.freq_max_slider = ctk.CTkSlider(freq_max_frame, from_=20, to=20000, number_of_steps=1000, command=self.update_freq_labels)
-        self.freq_max_slider.set(20000)
-        self.freq_max_slider.pack(side="left", fill="x", expand=True)
-        self.freq_max_label = ctk.CTkLabel(freq_max_frame, text=f"{self.freq_max_slider.get():.0f} Hz", width=60)
-        self.freq_max_label.pack(side="right", padx=5)
-
-        ctk.CTkButton(
-            self.sidebar_right, 
-            text="Aplicar Frequência", 
-            command=self.apply_frequency
-        ).pack(pady=10, padx=10, fill="x")
-
-        # --- Amostragem ---
-        ctk.CTkLabel(self.sidebar_right, text="Amostragem FFT (x)").pack(anchor="w", padx=10, pady=(10,0))
-        self.fft_scale_entry = ctk.CTkEntry(self.sidebar_right)
-        self.fft_scale_entry.insert(0, "1")
-        self.fft_scale_entry.pack(fill="x", padx=10, pady=5)
-
-        ctk.CTkButton(
-            self.sidebar_right,
-            text="Aplicar Amostragem",
-            command=lambda: self.controls.update_fft_scale(int(self.fft_scale_entry.get()))
-        ).pack(pady=10, padx=10, fill="x")
-
-        # --- Grade ---
-        self.grid_btn = ctk.CTkButton(
-            self.sidebar_right,
-            text="Grade: ON",
-            command=self.controls.toggle_grid
-        )
-        self.grid_btn.pack(pady=10, padx=10, fill="x")
-
-    # Função para atualizar os labels conforme o slider se move
-    def update_freq_labels(self, _=None):
-        self.freq_min_label.configure(text=f"{self.freq_min_slider.get():.0f} Hz")
-        self.freq_max_label.configure(text=f"{self.freq_max_slider.get():.0f} Hz")
-
 
 
     # ---------- Funções de Controle ----------
@@ -188,12 +146,11 @@ class App(ctk.CTk):
             messagebox.showerror("Erro Inesperado", f"Ocorreu um erro durante a exportação:\n{str(e)}")
 
     def init_graphic_area(self):
-        gr = graphic.Graphic(self.graph_container)
+        gr = graphic.Graphic(self.frame_fft)
         self.canvas = gr.canvas
+        widget = self.canvas.get_tk_widget()
+        widget.configure(bg=self.frame_fft.cget("fg_color"), highlightthickness=0)
         return gr
-
-
-
 
 
 app = App()

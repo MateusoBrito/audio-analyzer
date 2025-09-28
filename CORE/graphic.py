@@ -11,7 +11,7 @@ class Graphic:
         plt.style.use("dark_background")
 
         # Figura com fundo transparente (para casar com o CTkFrame)
-        self.fig, (self.ax_left, self.ax_right) = plt.subplots(1, 2, figsize=(12, 5), facecolor="#2b2b2b")
+        self.fig, (self.ax_left, self.ax_right) = plt.subplots(1, 2, figsize=(12, 5), facecolor='none')
         self.fig.subplots_adjust(wspace=0.3)
 
         # Canvas embedado no Tkinter
@@ -25,7 +25,7 @@ class Graphic:
             ax.clear()
 
             # Cores de fundo e eixos
-            ax.set_facecolor("#1e1e1e")
+            ax.set_facecolor('none')
             ax.tick_params(colors="white", labelsize=9)
             ax.spines["bottom"].set_color("white")
             ax.spines["left"].set_color("white")

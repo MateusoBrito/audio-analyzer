@@ -37,6 +37,7 @@ class Controls:
     def load_file(self, file_path):
         self.raw_data, self.sample_rate = sf.read(file_path, dtype="float32")
         self.file_name = os.path.basename(file_path)
+        
 
     def processar_audio(self, data, sample_rate, fi, fm):
         if data.ndim == 1:
@@ -136,3 +137,11 @@ class Controls:
         
         fig.savefig(caminho_completo, bbox_inches='tight', dpi=300)
         plt.close(fig)
+
+    def limpar_tudo(self):
+        self.current_file = None
+        self.raw_data = None
+        self.sample_rate = None
+        #self.btn_analisar.config(state=ctk.DISABLED)
+        self.plots = []
+        self.graphic.reset_axes()
