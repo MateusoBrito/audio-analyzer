@@ -6,7 +6,7 @@ from PIL import Image
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from CORE import controls, graphic
 from tkinter import filedialog, messagebox
-from VIEW.controls_side_bar import ControlsSidebar
+from VIEW.fr_barra_controle import ControlsSidebar
 
 class AnalysisScreen(ctk.CTkFrame):
     def __init__(self, parent, controller):
@@ -116,9 +116,9 @@ class AnalysisScreen(ctk.CTkFrame):
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao analisar áudio: {str(e)}")
 
-    def apply_fft(self):
-        fft_value = int(self.fft_slider.get())
-        messagebox.showinfo("FFT", f"Resolução FFT definida para {fft_value}")
+    #def apply_fft(self):
+    #    fft_value = int(self.fft_slider.get())
+    #    messagebox.showinfo("FFT", f"Resolução FFT definida para {fft_value}")
 
     def _lidar_com_exportacao(self):
         try:
