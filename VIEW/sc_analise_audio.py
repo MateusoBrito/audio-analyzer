@@ -4,30 +4,54 @@ import os
 from PIL import Image
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from CORE import controls, graphic
+from CORE import graphic
+from CORE.controls import Controls 
 from tkinter import filedialog, messagebox
 from VIEW.fr_barra_controle import ControlsSidebar
+# --- NOVO: Importa a classe da nova sidebar ---
+from VIEW.fr_barra_navegacao import NavigationSidebar
 
 class AnalysisScreen(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.logic_controller = Controls()
 
+        # A tela principal continua responsável por carregar os ícones
         self.load_icons()
 
-        # Estrutura principal: 3 colunas
-        self.grid_columnconfigure(0, weight=0)   # Sidebar esquerda
-        self.grid_columnconfigure(1, weight=1)   # Área de gráficos
-        self.grid_columnconfigure(2, weight=0)   # Sidebar direita
+        self.grid_columnconfigure(0, weight=0)
+        self.grid_columnconfigure(1, weight=1)
+        self.grid_columnconfigure(2, weight=0)
         self.grid_rowconfigure(0, weight=1)
 
         self.setup_ui()
 
     def setup_ui(self):
         # --- Sidebar esquerda ---
-        self.sidebar_left = ctk.CTkFrame(self, fg_color="#1e1e1e", width=150, corner_radius=0)
+        icons_for_sidebar = {
+            "logo": self.icon_Logo,
+            "upload": self.icon_upload,
+            "analyze": self.icon_analyze,
+            "export": self.icon_export,
+            "menu": self.icon_menu
+        }
+        
+        commands_for_sidebar = {
+            "upload": self.upload_window,
+            "analyze": self.analyze_audio,
+            "export": self._lidar_com_exportacao,
+            "menu": lambda: self.controller.show_frame("WelcomeScreen")
+        }
+        
+        # 2. Cria a instância da sidebar, passando o master e os dicionários
+        self.sidebar_left = NavigationSidebar(
+            master=self, 
+            icons=icons_for_sidebar, 
+            commands=commands_for_sidebar
+        )
         self.sidebar_left.grid(row=0, column=0, sticky="nswe")
-        self.build_sidebar_left()
+
 
         # --- Área central (gráficos) ---
         self.graph_container = ctk.CTkFrame(self, fg_color="#1e1e1e", corner_radius=0)
@@ -98,21 +122,22 @@ class AnalysisScreen(ctk.CTkFrame):
         self.frame_wave = ctk.CTkFrame(self.graph_container, fg_color="#2b2b2b")
         self.frame_wave.grid(row=1, column=0, sticky="nsew", padx=5, pady=5)
 
-    # ---------- Funções de Controle ----------
     def upload_window(self):
         file_path = filedialog.askopenfilename(filetypes=[("Arquivos WAV", "*.wav")])
         if not file_path:
             return
-        
         try:
-            self.controls.load_file(file_path) 
-            self.analyze_audio()
+            success = self.logic_controller.load_file(file_path) 
+            if success:
+                self.analyze_audio()
+            else:
+                messagebox.showerror("Erro", "Não foi possível carregar o arquivo de áudio.")
         except Exception as e:
-            messagebox.showerror("Erro", f"Erro ao carregar áudio: {str(e)}")
+            messagebox.showerror("Erro", f"Ocorreu um erro: {str(e)}")
 
     def analyze_audio(self):
         try:
-            self.controls.analyze_audio()
+            self.logic_controller.analyze_audio()
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao analisar áudio: {str(e)}")
 

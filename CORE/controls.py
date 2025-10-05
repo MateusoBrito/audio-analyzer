@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from scipy.fft import fft, fftfreq
 from datetime import datetime
 
+from controle_arquivo import AudioController
 
 class Controls:
     def __init__(self, graphic):
@@ -16,6 +17,14 @@ class Controls:
         self.fft_scale = 1  # Fator de escala FFT
         self.fi = 20
         self.fm = 20000
+
+        self.audio_controller = AudioController()
+    
+    def load_file(self, file_path):
+        """
+        Delega a tarefa de carregar o áudio para o especialista em áudio.
+        """
+        return self.audio_controller.load_file(file_path)
 
     def toggle_grid(self):
         self.graphic.grid_enabled = not self.graphic.grid_enabled
@@ -32,11 +41,6 @@ class Controls:
 
         self.graphic.canvas.draw()
         print(f"Grade dos gráficos: {'Ativada' if self.graphic.grid_enabled else 'Desativada'}")
-
-
-    def load_file(self, file_path):
-        self.raw_data, self.sample_rate = sf.read(file_path, dtype="float32")
-        self.file_name = os.path.basename(file_path)
         
 
     def processar_audio(self, data, sample_rate, fi, fm):
