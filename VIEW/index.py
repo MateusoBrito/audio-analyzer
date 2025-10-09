@@ -1,6 +1,6 @@
 import customtkinter as ctk
-from VIEW.sc_welcome import WelcomeScreen
-from VIEW.sc_analise_audio import AnalysisScreen
+from sc_welcome import WelcomeScreen
+from sc_analise_audio import AnalysisScreen
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("dark-blue")

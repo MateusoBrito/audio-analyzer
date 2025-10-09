@@ -47,7 +47,7 @@ class Graphic:
             )
 
         # Títulos dos gráficos
-        self.ax_left.set_title("Canal Esquerdo", fontsize=12, color="cyan", pad=12)
-        self.ax_right.set_title("Canal Direito", fontsize=12, color="cyan", pad=12)
+        self.ax_left.set_title("Canal Esquerdo", fontsize=12, color="white", pad=12)
+        self.ax_right.set_title("Canal Direito", fontsize=12, color="white", pad=12)
 
         self.canvas.draw()

@@ -7,11 +7,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from CORE import controls, graphic
 from tkinter import filedialog, messagebox
 from VIEW.fr_barra_controle import ControlsSidebar
+from VIEW.fr_graficos_fixos import fr_graficos
 
 class AnalysisScreen(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent)
         self.controller = controller
+        self.wave_graficos_frame = None
 
         self.load_icons()
 
@@ -90,6 +92,15 @@ class AnalysisScreen(ctk.CTkFrame):
     # ---------- Área de gráficos ----------
     def build_graph_area(self):
         self.graph_container.grid_rowconfigure((0, 1), weight=1)
+        # self.graph_container.grid_rowconfigure((0, 1), weight=1) # <<-- Comente ou remova esta
+    
+        # --- NOVAS LINHAS ---
+        # Dê à linha 0 (frame_fft) um peso menor
+        self.graph_container.grid_rowconfigure(0, weight=3) 
+        # Dê à linha 1 (frame_wave) um peso maior
+        self.graph_container.grid_rowconfigure(1, weight=7)
+        # --------------------
+
         self.graph_container.grid_columnconfigure(0, weight=1)
 
         self.frame_fft = ctk.CTkFrame(self.graph_container, fg_color="#2b2b2b")
@@ -105,8 +116,23 @@ class AnalysisScreen(ctk.CTkFrame):
             return
         
         try:
+            # Carrega o arquivo de áudio no seu 'controller'
             self.controls.load_file(file_path) 
+            
+            # --- LÓGICA PARA O GRÁFICO DE ONDA ---
+            # 1. Destrói o frame antigo, se ele existir
+            if self.wave_graficos_frame:
+                self.wave_graficos_frame.destroy()
+
+            # 2. Cria a nova instância dentro do self.frame_wave
+            self.wave_graficos_frame = fr_graficos(master=self.frame_wave, audio_file=file_path)
+            
+            # 3. Exibe o novo frame, fazendo-o preencher o espaço
+            self.wave_graficos_frame.pack(fill="both", expand=True)
+            
+            # Chama a análise principal que já existia
             self.analyze_audio()
+            
         except Exception as e:
             messagebox.showerror("Erro", f"Erro ao carregar áudio: {str(e)}")
 
