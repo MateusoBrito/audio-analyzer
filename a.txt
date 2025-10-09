@@ -1,0 +1,167 @@
+Explicação dos Parâmetros
+
+ 1. *Envelope RMS (Root Mean Square)*
+- Mede a *energia média* do sinal em janelas de tempo.  
+- Relaciona-se à percepção de *intensidade sonora* (volume percebido).  
+- Útil para observar a evolução da dinâmica ao longo da execução (ataque, sustentação, decaimento).
+
+ 2. *Fator de Crista (Crest Factor)*
+- Relação entre o *valor de pico* e o *valor RMS* do sinal.  
+- Fórmula:  
+  \[
+  CF = \frac{\text{Pico}}{\text{RMS}}
+  \]  
+- Valores altos indicam sinais com *transientes fortes* (ex.: percussão).  
+- Valores baixos indicam sinais mais *compressos ou suaves* (ex.: cordas sustentadas).
+
+3. *Espectro (FFT)*
+- Decompõe o som em suas *frequências constituintes*.  
+- Permite visualizar quais regiões do espectro (graves, médios, agudos) concentram mais energia.  
+- Essencial para entender o *timbre* do instrumento.
+
+ 4. *Centróide Espectral*
+- É a “*média ponderada*” das frequências presentes no som.  
+- Interpretação perceptual: quanto mais alto o centróide, mais *brilhante* ou *agudo* o som é percebido.  
+- Instrumentos metálicos ou com ataque forte tendem a ter centróides mais elevados.
+
+ 5. *Roll-off Espectral*
+- Frequência abaixo da qual se concentra uma porcentagem da energia total (geralmente 85% ou 95%).  
+- Indica o *limite superior efetivo* do espectro do instrumento.  
+- Útil para diferenciar sons “abertos” (com muito conteúdo agudo) de sons “fechados” (mais graves).
+
+ 6. *Espectrograma (STFT)*
+- Representação *tempo–frequência* do sinal.  
+- Mostra como a energia em diferentes frequências evolui ao longo do tempo.  
+- Permite visualizar ataques, sustentações, vibratos e ruídos transitórios.
+
+7. *Frequência Fundamental (f0)*
+- É a frequência mais baixa e base do som, responsável pela *altura musical* (nota).  
+- O algoritmo pyin rastreia a f0 ao longo do tempo, mesmo em sinais complexos.  
+- Importante para verificar *estabilidade de afinação* e presença de vibrato.
+
+8. *Envelope de Amplitude (Hilbert)*
+- Obtido pela transformada de Hilbert, fornece a *curva suave da amplitude* do sinal.  
+- Permite observar com clareza o *ataque, decaimento e release* de cada nota.  
+- Essencial para caracterizar o *perfil dinâmico* do instrumento.
+
+ Como esses parâmetros se conectam
+- *Tempo (RMS, Crest Factor, Envelope):* descrevem a *dinâmica* e a forma como o som cresce e decai.  
+- *Frequência (FFT, Centróide, Roll-off):* descrevem o *timbre* e a distribuição de energia.  
+- *Tempo–Frequência (Espectrograma, f0):* mostram como o timbre e a afinação evoluem ao longo da execução.  
+
+Juntos, eles formam uma *assinatura acústica* do instrumento, permitindo compará-lo com outros ou até criar uma identidade sonora única.
+
+
+# ============================================================
+# Script de Análise de Áudio para Caracterização de Instrumento
+# ============================================================
+# Autor: Coloca o nome de todas e todos aqui, por favor.
+# Objetivo: caracterizar instrumentos em termos de
+# parâmetros temporais, espectrais e tempo-frequência.
+# ============================================================
+
+# -----------------------------
+# (1) Importação de bibliotecas
+# -----------------------------
+import librosa
+import librosa.display
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.signal import hilbert
+
+# -----------------------------
+# (2) Carregar o arquivo de áudio
+# -----------------------------
+# Substitua 'meu_audio.wav' pelo caminho do seu arquivo
+y, sr = librosa.load("meu_audio.wav", sr=None)
+
+# -----------------------------
+# (3) Análise no domínio do tempo
+# -----------------------------
+# 3.1 - Cálculo do envelope RMS
+frame_length = 2048
+hop_length = 512
+rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
+
+# 3.2 - Cálculo do fator de crista (Crest Factor)
+peak = np.max(np.abs(y))
+rms_global = np.sqrt(np.mean(y**2))
+crest_factor = peak / rms_global
+
+print(f"Crest Factor: {crest_factor:.2f}")
+
+# -----------------------------
+# (4) Análise espectral (frequência)
+# -----------------------------
+# 4.1 - Espectro médio (FFT)
+fft = np.fft.fft(y)
+magnitude = np.abs(fft)[:len(fft)//2]
+freqs = np.fft.fftfreq(len(fft), 1/sr)[:len(fft)//2]
+
+# 4.2 - Centróide espectral
+centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+
+# 4.3 - Roll-off espectral
+rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, roll_percent=0.85)[0]
+
+# -----------------------------
+# (5) Análise tempo-frequência
+# -----------------------------
+# 5.1 - Espectrograma STFT
+S = np.abs(librosa.stft(y, n_fft=2048, hop_length=hop_length))
+S_db = librosa.amplitude_to_db(S, ref=np.max)
+
+# -----------------------------
+# (6) Extração de parâmetros adicionais
+# -----------------------------
+# 6.1 - Pitch tracking (f0)
+f0, voiced_flag, voiced_probs = librosa.pyin(y,
+                                             fmin=librosa.note_to_hz('C2'),
+                                             fmax=librosa.note_to_hz('C7'))
+
+# 6.2 - Envelope de amplitude via transformada de Hilbert
+analytic_signal = hilbert(y)
+amplitude_envelope = np.abs(analytic_signal)
+
+# -----------------------------
+# (7) Visualizações
+# -----------------------------
+plt.figure(figsize=(14, 10))
+
+# 7.1 - Onda + envelope RMS
+plt.subplot(3,1,1)
+librosa.display.waveshow(y, sr=sr, alpha=0.6)
+plt.plot(librosa.times_like(rms, sr=sr, hop_length=hop_length),
+         rms, color='r', label='RMS')
+plt.title("Forma de onda + Envelope RMS")
+plt.legend()
+
+# 7.2 - Espectrograma
+plt.subplot(3,1,2)
+librosa.display.specshow(S_db, sr=sr, hop_length=hop_length,
+                         x_axis='time', y_axis='hz', cmap='magma')
+plt.colorbar(format="%+2.f dB")
+plt.title("Espectrograma (STFT)")
+
+# 7.3 - Centróide espectral ao longo do tempo
+plt.subplot(3,1,3)
+plt.semilogy(librosa.times_like(centroid, sr=sr, hop_length=hop_length),
+             centroid.T, label='Centróide espectral')
+plt.ylabel('Hz')
+plt.xlabel('Tempo (s)')
+plt.title("Centróide espectral")
+plt.legend()
+
+plt.tight_layout()
+plt.show()
+
+# -----------------------------
+# (8) Saída resumida
+# -----------------------------
+print("Resumo da análise:")
+print(f"- Taxa de amostragem: {sr} Hz")
+print(f"- Duração: {len(y)/sr:.2f} s")
+print(f"- Crest Factor: {crest_factor:.2f}")
+print(f"- Centróide espectral médio: {np.mean(centroid):.2f} Hz")
+print(f"- Roll-off espectral médio: {np.mean(rolloff):.2f} Hz")
+print(f"- Fundamental média (f0): {np.nanmean(f0):.2f} Hz")
