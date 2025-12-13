@@ -20,6 +20,18 @@ class BasePlotFrame(ctk.CTkFrame):
         # Configura o fundo do widget para a cor do tema
         widget.configure(bg=THEME_COLOR, highlightthickness=0) 
         widget.pack(fill="both", expand=True)
+    
+    def set_grid(self, enabled):
+        """Ativa/Desativa a grade de forma segura."""
+        for ax in self.fig.axes:
+            if enabled:
+                # SE LIGAR: Aplica True e o estilo visual
+                ax.grid(True, linestyle=':', linewidth=0.7, color="gray", alpha=0.4)
+            else:
+                # SE DESLIGAR: Passa APENAS False, sem argumentos de estilo
+                ax.grid(False)
+        
+        self.canvas.draw_idle()
 
     def clear(self):
         # Limpa a FIGURA inteira
@@ -189,6 +201,10 @@ class MetricsFrame(ctk.CTkFrame):
         self.labels["centroid"].configure(text=f"{data['centroid']:.2f} Hz")
         self.labels["rolloff"].configure(text=f"{data['rolloff']:.2f} Hz")
         self.labels["f0"].configure(text=f"{data['f0']:.2f} Hz")
+    
+    def reset(self):
+        for label in self.labels.values():
+            label.configure(text="--")
 
 class DashboardFrame(ctk.CTkScrollableFrame):
     def __init__(self, master):
@@ -226,6 +242,7 @@ class DashboardFrame(ctk.CTkScrollableFrame):
     def clear(self):
         for frame in self.frames.values():
             frame.clear()
+        self.metrics_view.reset()
 
     def draw(self):
         for frame in self.frames.values():
@@ -233,3 +250,9 @@ class DashboardFrame(ctk.CTkScrollableFrame):
     
     def update_metrics(self, data):
         self.metrics_view.update_metrics(data)
+    
+    def update_all_grids(self, enabled):
+        """Comanda todos os gráficos do dashboard a mudar a grade."""
+        for frame in self.frames.values():
+            if hasattr(frame, 'set_grid'):
+                frame.set_grid(enabled)

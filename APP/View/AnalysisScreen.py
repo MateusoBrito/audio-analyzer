@@ -1,12 +1,23 @@
 import customtkinter as ctk
 from tkinter import filedialog, messagebox
 from PIL import Image
+import sys
 import os
 
 from AppController import AppController
 from View.ControlPanel import ControlPanel
 from View.FileSelectionDialog import FileSelectionDialog
 from View.RecordingDialog import RecordingDialog
+
+def resource_path(relative_path):
+    """Obtém o caminho absoluto para o recurso, funciona para dev e para o PyInstaller"""
+    try:
+        # PyInstaller cria uma pasta temporária e armazena o caminho em _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+
+    return os.path.join(base_path, relative_path)
 
 class AnalysisScreen(ctk.CTkFrame):
     def __init__(self, parent, nav_controller):
@@ -39,18 +50,21 @@ class AnalysisScreen(ctk.CTkFrame):
         self.icons = {}
         self.icons = {}
         try:
-            current_dir = os.path.dirname(os.path.abspath(__file__))
-            project_root = os.path.dirname(current_dir)
-            img_path_dir = os.path.join(project_root, "images")
-
             # Carrega as imagens usando o caminho absoluto
-            self.icons['upload'] = ctk.CTkImage(Image.open(os.path.join(img_path_dir, "upload.png")), size=(24, 24))
-            self.icons['analyze'] = ctk.CTkImage(Image.open(os.path.join(img_path_dir, "Graph.png")), size=(24, 24))
-            self.icons['export'] = ctk.CTkImage(Image.open(os.path.join(img_path_dir, "Export.png")), size=(24, 24))
-            self.icons['home'] = ctk.CTkImage(Image.open(os.path.join(img_path_dir, "Home.png")), size=(24, 24))
-            
+            img_upload = resource_path(os.path.join("images", "upload.png"))
+            self.icons['upload'] = ctk.CTkImage(Image.open(img_upload), size=(24, 24))
+            img_graph = resource_path(os.path.join("images", "analysis.png"))
+            self.icons['analyze'] = ctk.CTkImage(Image.open(img_graph), size=(24, 24))
+            img_export = resource_path(os.path.join("images", "export.png"))
+            self.icons['export'] = ctk.CTkImage(Image.open(img_export), size=(24, 24))
+            img_home = resource_path(os.path.join("images", "Home.png"))
+            self.icons['home'] = ctk.CTkImage(Image.open(img_home), size=(24, 24))
+            img_audio = resource_path(os.path.join("images", "phone.png"))
+            self.icons['phone'] = ctk.CTkImage(Image.open(img_audio), size=(24, 24))
+
             # Logo (tamanho diferente)
-            self.icons['logo'] = ctk.CTkImage(Image.open(os.path.join(img_path_dir, "Logo.png")), size=(101, 50))
+            img_logo = resource_path(os.path.join("images", "Logo.png"))
+            self.icons['logo'] = ctk.CTkImage(Image.open(img_logo), size=(101, 50))
             
         except Exception as e:
             print(f"Erro ao carregar ícones: {e}")
@@ -76,7 +90,7 @@ class AnalysisScreen(ctk.CTkFrame):
         self._create_menu_btn("Carregar", self.icons['upload'], self._on_upload_click)
         self._create_menu_btn("Analisar", self.icons['analyze'], self._on_analyze_click)
         self._create_menu_btn("Exportar", self.icons['export'], self._on_export_click)
-        self._create_menu_btn("Gravar", self.icons.get('none'), self._on_record_click)
+        self._create_menu_btn("Gravar", self.icons.get('phone'), self._on_record_click)
 
         ctk.CTkFrame(self.sidebar_left, fg_color="transparent").pack(expand=True)
         self._create_menu_btn("Menu", self.icons['home'], lambda: self.nav_controller.show_frame("WelcomeScreen"))

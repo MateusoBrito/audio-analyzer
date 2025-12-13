@@ -58,34 +58,63 @@ class AppController:
 
     def draw_plots(self):
         """
-        Função MESTRA simplificada: Calcula e desenha todos os dados no Dashboard.
+        Desenha o Dashboard COMPLETO. 
+        Usado apenas quando carregamos um arquivo novo ou mudamos a seleção.
         """
         if not self.active_plot_frame: return
         
-        # 1. Define qual arquivo é o "Principal" (Ativo) para Onda/Spec/RMS
+        # ... (Lógica de pegar active_filename igual antes) ...
         filename_to_plot = self.active_filename
-        
-        # Se não tem ativo, tenta pegar o primeiro da lista
         if not filename_to_plot and self.plot_list:
             filename_to_plot = self.plot_list[0]['filename']
         
-        # Se mesmo assim não tem arquivo válido, limpa a tela e sai
         if not filename_to_plot or filename_to_plot not in self.loaded_files:
             self.active_plot_frame.clear()
             self.active_plot_frame.draw()
             return
 
-        # Pega dados do arquivo principal
         y, sr = self.loaded_files[filename_to_plot]
 
-        # --- ATUALIZAÇÃO DO DASHBOARD ---
+        # --- A. DESENHA OS GRÁFICOS PESADOS (ESTÁTICOS) ---
+        # Só fazemos isso se mudou o arquivo principal
         
-        # A. Métricas Numéricas (Topo)
+        # 1. Métricas
         metrics_data = self.analyzer.get_advanced_metrics(y, sr)
         if hasattr(self.active_plot_frame, 'update_metrics'):
             self.active_plot_frame.update_metrics(metrics_data)
 
-        # B. FFT (Multi-plot: Desenha todos da lista)
+        # 2. Waveform
+        times, y_data = self.analyzer.get_waveform_data(y, sr)
+        self.active_plot_frame.get_frame('Waveform').plot(times, y_data, sr)
+        
+        # 3. Spectrogram (O MAIS PESADO - Agora só roda aqui)
+        S_db = self.analyzer.get_spectrogram_data(y, sr)
+        self.active_plot_frame.get_frame('Spectrogram').plot(S_db, sr)
+
+        # 4. RMS
+        times_rms, rms_data = self.analyzer.get_rms_data(y, sr)
+        self.active_plot_frame.get_frame('RMS').plot(times_rms, rms_data)
+        
+        # 5. Hilbert
+        samples, env_data = self.analyzer.get_hilbert_data(y)
+        self.active_plot_frame.get_frame('Hilbert').plot(samples, env_data)
+        
+        if hasattr(self.active_plot_frame, 'update_all_grids'):
+            self.active_plot_frame.update_all_grids(self.grid_enabled)
+
+        # --- B. DESENHA O GRÁFICO LEVE (DINÂMICO) ---
+        self._update_fft_graph() # Chama a função auxiliar
+        
+        # Finaliza
+        self.active_plot_frame.draw()
+
+    def _update_fft_graph(self):
+        """
+        Atualiza APENAS o gráfico FFT.
+        Muito rápido, usado para sliders e ajustes de visualização.
+        """
+        if not self.active_plot_frame: return
+
         fft_frame = self.active_plot_frame.get_frame('FFT')
         fft_frame.reset_axes(self.grid_enabled)
         
@@ -95,34 +124,35 @@ class AppController:
             
             y_fft, sr_fft = self.loaded_files[fname]
             
+            # Aqui aplicamos os filtros (fi, fm, scale) que mudam rápido
             freq, L, R = self.analyzer.get_fft_data(
                 y_fft, sr_fft, self.fi, self.fm, self.fft_scale
             )
             
-            # Usa 'label' (apelido) se existir, senão usa o nome do arquivo
             label_text = plot_item.get('label', fname)
             fft_frame.add_plot(freq, L, R, label_text, plot_item['color'])
         
-        # C. Gráficos de Arquivo Único (Baseados em y, sr do arquivo ativo)
-        
-        # Forma de Onda
-        times, y_data = self.analyzer.get_waveform_data(y, sr)
-        self.active_plot_frame.get_frame('Waveform').plot(times, y_data, sr)
-        
-        # Espectrograma
-        S_db = self.analyzer.get_spectrogram_data(y, sr)
-        self.active_plot_frame.get_frame('Spectrogram').plot(S_db, sr)
-
-        # RMS
-        times_rms, rms_data = self.analyzer.get_rms_data(y, sr)
-        self.active_plot_frame.get_frame('RMS').plot(times_rms, rms_data)
-        
-        # Hilbert
-        samples, env_data = self.analyzer.get_hilbert_data(y)
-        self.active_plot_frame.get_frame('Hilbert').plot(samples, env_data)
-        
-        # D. Finaliza desenhando tudo na tela
+        # Manda desenhar apenas o quadro do FFT (se possível) ou tudo
+        # Como o draw_idle é eficiente, chamar .draw() no pai funciona bem
+        # se os outros gráficos não tiverem sido limpos.
         self.active_plot_frame.draw()
+    
+    def update_analysis_params(self, fi=None, fm=None, fft_scale=None):
+        """Chamado pelos sliders/botão aplicar"""
+        changed = False
+        if fi is not None and fi != self.fi: 
+            self.fi = fi
+            changed = True
+        if fm is not None and fm != self.fm: 
+            self.fm = fm
+            changed = True
+        if fft_scale is not None and fft_scale != self.fft_scale: 
+            self.fft_scale = fft_scale
+            changed = True
+        
+        # SE MUDOU PARÂMETRO -> Chama só o update leve do FFT
+        if changed and self.plot_list:
+            self._update_fft_graph()
 
     def update_plot_selection(self, selection_data, main_file):
         """
@@ -165,7 +195,16 @@ class AppController:
     
     def toggle_grid(self):
         self.grid_enabled = not self.grid_enabled
-        self.draw_plots()
+        
+        # Se temos um gráfico ativo na tela
+        if self.active_plot_frame:
+            # Se for o Dashboard, manda atualizar todos dentro dele
+            if hasattr(self.active_plot_frame, 'update_all_grids'):
+                self.active_plot_frame.update_all_grids(self.grid_enabled)
+            
+            # Se for um gráfico sozinho (caso use no futuro), atualiza ele
+            elif hasattr(self.active_plot_frame, 'set_grid'):
+                self.active_plot_frame.set_grid(self.grid_enabled)
     
     def update_analysis_params(self, fi=None, fm=None, fft_scale=None):
         if fi is not None: self.fi = fi
