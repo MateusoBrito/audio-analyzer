@@ -5,6 +5,8 @@ import os
 
 from AppController import AppController
 from View.ControlPanel import ControlPanel
+from View.FileSelectionDialog import FileSelectionDialog
+from View.RecordingDialog import RecordingDialog
 
 class AnalysisScreen(ctk.CTkFrame):
     def __init__(self, parent, nav_controller):
@@ -74,6 +76,7 @@ class AnalysisScreen(ctk.CTkFrame):
         self._create_menu_btn("Carregar", self.icons['upload'], self._on_upload_click)
         self._create_menu_btn("Analisar", self.icons['analyze'], self._on_analyze_click)
         self._create_menu_btn("Exportar", self.icons['export'], self._on_export_click)
+        self._create_menu_btn("Gravar", self.icons.get('none'), self._on_record_click)
 
         ctk.CTkFrame(self.sidebar_left, fg_color="transparent").pack(expand=True)
         self._create_menu_btn("Menu", self.icons['home'], lambda: self.nav_controller.show_frame("WelcomeScreen"))
@@ -110,16 +113,32 @@ class AnalysisScreen(ctk.CTkFrame):
     # -------------------------------------------------------------------------
 
     def _on_upload_click(self):
-        """Abre diálogo de arquivo e manda o controller carregar."""
         file_path = filedialog.askopenfilename(filetypes=[("Arquivos WAV","*.wav"),("MP3","*.mp3")])
         if file_path:
             self.logic_controller.load_file(file_path)
-            # Feedback visual opcional: mudar o título ou status
+            messagebox.showinfo("Carregado", f"Arquivo carregado:\n{os.path.basename(file_path)}")
     
     def _on_analyze_click(self):
-        """Adiciona o arquivo carregado ao gráfico atual."""
-        self.logic_controller.add_active_file_to_plot()
-    
+        """Abre a janela de seleção."""
+        available_files = list(self.logic_controller.loaded_files.keys())
+        if not available_files:
+            messagebox.showwarning("Aviso", "Nenhum arquivo carregado.")
+            return
+
+        FileSelectionDialog(
+            parent=self, 
+            filenames=available_files, 
+            callback=self._on_files_selected
+        )
+
+    def _on_files_selected(self, selection_data, main_file):
+        """
+        Recebe:
+        - selection_data: Lista de tuplas [(nome_orig, apelido), ...] para o FFT
+        - main_file: String com o nome do arquivo principal para Onda/Spec/etc
+        """
+        self.logic_controller.update_plot_selection(selection_data, main_file)
+        
     def _on_export_click(self):
         """Exporta os gráficos atuais."""
         dir_path = filedialog.askdirectory(title="Selecione a pasta para salvar")
@@ -129,3 +148,18 @@ class AnalysisScreen(ctk.CTkFrame):
                 messagebox.showinfo("Sucesso", "Gráficos exportados com sucesso!")
             except Exception as e:
                 messagebox.showerror("Erro", f"Falha na exportação: {e}")
+    
+    def _on_record_click(self):
+        """Abre a janela de gravação"""
+        RecordingDialog(self, callback=self._on_recording_saved)
+
+    def _on_recording_saved(self, filepath):
+        """Chamado quando a gravação é salva com sucesso"""
+        # 1. Carrega o arquivo no Controller
+        self.logic_controller.load_file(filepath)
+        
+        # 2. (Opcional) Já joga ele direto na tela para ver o resultado
+        # Se quiser que ele apenas carregue e não plote, remova a linha abaixo.
+        self.logic_controller.add_active_file_to_plot()
+        
+        messagebox.showinfo("Sucesso", f"Áudio gravado e carregado:\n{os.path.basename(filepath)}")

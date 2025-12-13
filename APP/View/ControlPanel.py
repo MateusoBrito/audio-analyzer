@@ -3,8 +3,8 @@ from tkinter import messagebox
 
 class ControlPanel(ctk.CTkFrame):
     """
-    Painel Lateral Direito:
-    Responsável por coletar configurações do usuário e enviá-las ao Controller.
+    Painel Lateral Direito Simplificado:
+    Focado apenas em filtros e controle de grade/limpeza.
     """
 
     FONT_FAMILY = "Sora"
@@ -14,33 +14,17 @@ class ControlPanel(ctk.CTkFrame):
     def __init__(self, parent, controller):
         super().__init__(parent, fg_color="#1e1e1e", width=220, corner_radius=0)
         self.controller = controller
-
         self.pack_propagate(False)
-        
         self._build_ui()
 
     def _build_ui(self):
         """Monta a interface verticalmente."""
-
-        # 1. Seletor de Tipo de Análise
-        self._create_section_header("Visualização").pack(anchor="w", padx=15,pady=(20,5))
-
-        self.analysis_mode_menu = ctk.CTkOptionMenu(
-            self,
-            values=["Dashboard", "FFT", "Waveform", "Spectrogram", "RMS", "Hilbert"],
-            command=self._on_analysis_change,
-            fg_color="#4A4D50",
-            button_color="#3D3F42",
-            button_hover_color="#5E6164",
-            font=self.BODY_FONT
-        )
-        self.analysis_mode_menu.set("Dashboard")
-        self.analysis_mode_menu.pack(fill="x", padx=15, pady=5)
-
-        self._add_divider()
-        # 2. Controles de Frequência (Min/Max)
-
-        self._create_section_header("Filtro de frequência").pack(anchor="w", padx=15,pady=5)
+        
+        # --- REMOVIDO O MENU DE VISUALIZAÇÃO ---
+        # Agora começamos direto pelos filtros
+        
+        # 1. Controles de Frequência (Min/Max)
+        self._create_section_header("Filtro de frequência").pack(anchor="w", padx=15, pady=(20, 5))
 
         self.min_freq_frame, self.slider_min, self.entry_min = self._create_slider_group(
             "Mín (Hz):", 20, 20000, 20
@@ -53,17 +37,18 @@ class ControlPanel(ctk.CTkFrame):
         self.max_freq_frame.pack(fill="x", padx=15, pady=5)
 
         self._add_divider()
-        #3. Controle de FFT Scale
 
-        self._create_section_header("Resolução (FFT Scale)").pack(anchor="w", padx= 15, pady=5)
+        # 2. Controle de FFT Scale
+        self._create_section_header("Resolução (FFT Scale)").pack(anchor="w", padx=15, pady=5)
         self.fft_scale_entry = ctk.CTkEntry(self, placeholder_text="1")
-        self.fft_scale_entry.insert(0,"1")
-        self.fft_scale_entry.pack(fill="x",padx=15,pady=5)
+        self.fft_scale_entry.insert(0, "1")
+        self.fft_scale_entry.pack(fill="x", padx=15, pady=5)
 
         self._add_divider()
-        #4. Botões de Ação
 
-        # Botão Aplicar Parâmetros
+        # 3. Botões de Ação
+        
+        # Botão Aplicar
         self.btn_apply = ctk.CTkButton(
             self, 
             text="Aplicar Parâmetros", 
@@ -73,7 +58,7 @@ class ControlPanel(ctk.CTkFrame):
         )
         self.btn_apply.pack(fill="x", padx=15, pady=(15, 5))
 
-        # Botão Toggle Grid
+        # Botão Grade
         self.btn_grid = ctk.CTkButton(
             self, 
             text="Grade: ON", 
@@ -106,48 +91,39 @@ class ControlPanel(ctk.CTkFrame):
 
     def _add_divider(self):
         line = ctk.CTkFrame(self, height=2, fg_color="#3D3F42")
-        line.pack(fill="x", padx=10,pady=15)
+        line.pack(fill="x", padx=10, pady=15)
     
     def _create_slider_group(self, label_text, min_val, max_val, default_val):
-        """Cria um frame contendo Label + Entry + Slider sincronizados."""
         frame = ctk.CTkFrame(self, fg_color="transparent")
-
-        # Topo: Label e Entry
         top_frame = ctk.CTkFrame(frame, fg_color="transparent")
         top_frame.pack(fill="x")
 
-        lbl = ctk.CTkLabel(top_frame, width=60, font=self.BODY_FONT)
+        lbl = ctk.CTkLabel(top_frame, text=label_text, font=self.BODY_FONT) # Adicionei text=label_text aqui que faltava no seu original
         lbl.pack(side="left")
 
         entry = ctk.CTkEntry(top_frame, width=60, font=self.BODY_FONT)
-        entry.insert(0,str(default_val))
+        entry.insert(0, str(default_val))
         entry.pack(side="right")
 
-        # Slider
         def update_entry(val):
-            entry.delete(0,"end")
+            entry.delete(0, "end")
             entry.insert(0, str(int(val)))
 
         slider = ctk.CTkSlider(frame, from_=min_val, to=max_val, command=update_entry)
         slider.set(default_val)
-        slider.pack(fill="x", pady=(5,0))
+        slider.pack(fill="x", pady=(5, 0))
 
         return frame, slider, entry
     
-    # --- Lógica de Callbacks (Conectando ao Controller) ---
+    # --- Callbacks ---
 
-    def _on_analysis_change(self, selected_mode):
-        """Chamado quando o usuário troca o tipo no Dropdown."""
-        self.controller.set_analysis_type(selected_mode)
-    
     def _on_apply_click(self):
-        """Lê os inputs e manda para o Controller atualizar os parâmetros."""
         try:
             fi = float(self.entry_min.get())
             fm = float(self.entry_max.get())
             fft_scale = int(self.fft_scale_entry.get())
 
-            if fi>=fm:
+            if fi >= fm:
                 messagebox.showwarning("Aviso", "Frequência mínima deve ser menor que a máxima.")
                 return
             
@@ -157,7 +133,6 @@ class ControlPanel(ctk.CTkFrame):
     
     def _on_toggle_grid(self):
         self.controller.toggle_grid()
-
         state = "ON" if self.controller.grid_enabled else "OFF"
         self.btn_grid.configure(text=f"Grade: {state}")
     

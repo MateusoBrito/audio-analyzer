@@ -1,51 +1,141 @@
 import os
 import matplotlib.pyplot as plt
+import librosa.display
+import numpy as np
 from datetime import datetime
 
 class PlotExporter:
     """
-    Responsável por criar e salvar imagens dos gráficos em disco.
+    Responsável por criar e salvar imagens de TODOS os gráficos em disco.
     """
 
-    def save_plots(self, dir_path:str, plot_data_list:list, grid_enabled: bool):
+    def save_dashboard(self, dir_path: str, 
+                       active_audio: tuple, 
+                       plot_list: list, 
+                       analyzer, 
+                       grid_enabled: bool,
+                       params: dict):
         """
-        Ponto de entrada principal. Salva os gráficos dos canais L e R.
-        'plot_data_list' é uma lista de dicionários contendo os dados.
+        Salva o conjunto completo de gráficos.
         """
-        if not plot_data_list:
-            raise ValueError("Nenhum dado de gráfico para exportar!")
-        
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        self._save_channel(dir_path,timestamp,"esquerdo",plot_data_list,grid_enabled,'L')
-        self._save_channel(dir_path,timestamp,"direito",plot_data_list,grid_enabled,'R')
+        saved_files = []
 
-        return [f"esquerdo_{timestamp}.png",
-                f"direito_{timestamp}.png"]
-    
-    def _save_channel(self, dir_path, timestamp, nome_canal, 
-                            plot_data_list, grid_enabled, data_key):
-        """
-        Lógica interna para criar e salvar a imagem de um único canal.
-        'data_key' será 'L' ou 'R'.
-        """
+        # Desempacota o áudio ativo
+        if active_audio:
+            y, sr = active_audio
+            # Garante que usamos apenas um canal para análises temporais
+            y_mono = y[:, 0] if y.ndim > 1 else y
 
-        fig,ax = plt.subplots(figsize=(10,5), dpi=300)
-        for plot_data in plot_data_list:
-            ax.plot(
-                plot_data['freq'],
-                plot_data[data_key],
-                color=plot_data['color'],
-                label=plot_data['label']
-            )
+            # 1. Salvar Forma de Onda
+            saved_files.append(self._save_waveform(dir_path, timestamp, y_mono, sr, analyzer, grid_enabled))
+            
+            # 2. Salvar Espectrograma
+            saved_files.append(self._save_spectrogram(dir_path, timestamp, y_mono, sr, analyzer))
+            
+            # 3. Salvar RMS
+            saved_files.append(self._save_rms(dir_path, timestamp, y_mono, sr, analyzer, grid_enabled))
+            
+            # 4. Salvar Hilbert
+            saved_files.append(self._save_hilbert(dir_path, timestamp, y_mono, analyzer, grid_enabled))
+
+        # 5. Salvar FFT (Comparativo - usa plot_list)
+        if plot_list:
+            files_fft = self._save_fft_comparison(dir_path, timestamp, plot_list, grid_enabled)
+            saved_files.extend(files_fft)
+
+        return saved_files
+
+    def _create_figure(self):
+        """Helper para criar figura padrão de exportação (fundo branco para impressão)"""
+        return plt.subplots(figsize=(15, 5), dpi=300)
+
+    def _save_waveform(self, dir_path, ts, y, sr, analyzer, grid):
+        fig, ax = self._create_figure()
         
-        ax.grid(grid_enabled, which='both', linestyle=':', color='gray', alpha=0.5)
-        ax.set_title(f"Canal {nome_canal.capitalize()}")
-        ax.set_xlabel("Frequência (Hz)")
-        ax.set_ylabel("Amplitude (normalizada)")
-        ax.legend(fontsize=8, framealpha=0.5)
-
-        nome_arquivo = f"{nome_canal}_{timestamp}.png"
-        caminho_completo = os.path.join(dir_path,nome_arquivo)
-
-        fig.savefig(caminho_completo, bbox_inches='tight', dpi=300)
+        times, y_data = analyzer.get_waveform_data(y, sr)
+        librosa.display.waveshow(y_data, sr=sr, ax=ax, color='steelblue')
+        
+        ax.set_title("Forma de Onda")
+        ax.set_xlabel("Tempo (s)")
+        ax.set_ylabel("Amplitude")
+        ax.grid(grid, linestyle=':', alpha=0.5)
+        
+        fname = f"waveform_{ts}.png"
+        fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
         plt.close(fig)
+        return fname
+
+    def _save_spectrogram(self, dir_path, ts, y, sr, analyzer):
+        fig, ax = self._create_figure()
+        
+        S_db = analyzer.get_spectrogram_data(y, sr)
+        img = librosa.display.specshow(S_db, sr=sr, x_axis='time', y_axis='log', ax=ax, cmap='magma')
+        fig.colorbar(img, ax=ax, format='%+2.0f dB')
+        
+        ax.set_title("Espectrograma")
+        
+        fname = f"spectrogram_{ts}.png"
+        fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
+        plt.close(fig)
+        return fname
+
+    def _save_rms(self, dir_path, ts, y, sr, analyzer, grid):
+        fig, ax = self._create_figure()
+        
+        times, rms = analyzer.get_rms_data(y, sr)
+        ax.plot(times, rms, color='orange')
+        
+        ax.set_title("Envelope RMS")
+        ax.set_xlabel("Tempo (s)")
+        ax.set_ylabel("Amplitude RMS")
+        ax.grid(grid, linestyle=':', alpha=0.5)
+        
+        fname = f"rms_{ts}.png"
+        fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
+        plt.close(fig)
+        return fname
+
+    def _save_hilbert(self, dir_path, ts, y, analyzer, grid):
+        fig, ax = self._create_figure()
+        
+        samples, env = analyzer.get_hilbert_data(y)
+        ax.plot(samples, env, color='purple')
+        
+        ax.set_title("Envelope Hilbert")
+        ax.set_xlabel("Amostras")
+        ax.set_ylabel("Amplitude")
+        ax.grid(grid, linestyle=':', alpha=0.5)
+        
+        fname = f"hilbert_{ts}.png"
+        fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
+        plt.close(fig)
+        return fname
+
+    def _save_fft_comparison(self, dir_path, ts, plot_list, grid):
+        """Salva o FFT Esquerdo e Direito com todas as linhas da plot_list"""
+        saved = []
+        
+        for canal, key_idx, nome_arq in [('esquerdo', 'L', 'fft_L'), ('direito', 'R', 'fft_R')]:
+            fig, ax = self._create_figure()
+            
+            for plot_data in plot_list:
+                ax.plot(
+                    plot_data['freq'], 
+                    plot_data[key_idx], 
+                    color=plot_data['color'], 
+                    label=plot_data['label']
+                )
+            
+            ax.set_title(f"FFT - Canal {canal.capitalize()}")
+            ax.set_xlabel("Frequência (Hz)")
+            ax.set_ylabel("Amplitude")
+            ax.legend(fontsize=8)
+            ax.grid(grid, linestyle=':', alpha=0.5)
+            
+            fname = f"{nome_arq}_{ts}.png"
+            fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
+            plt.close(fig)
+            saved.append(fname)
+            
+        return saved

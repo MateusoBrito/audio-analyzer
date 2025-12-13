@@ -59,3 +59,48 @@ class AudioAnalyzer:
         amplitude_envelope = np.abs(analytic_signal)
         samples = np.arange(len(amplitude_envelope))
         return samples, amplitude_envelope
+    
+    # Em AudioAnalyzer.py
+
+    def get_advanced_metrics(self, y, sr):
+        """
+        Calcula métricas avançadas (Crest Factor, Centróide, F0, etc).
+        Retorna um dicionário com os valores formatados.
+        """
+        # Garante mono para análise de características globais
+        if y.ndim > 1:
+            y_mono = y[:, 0]
+        else:
+            y_mono = y
+
+        # 1. Crest Factor
+        peak = np.max(np.abs(y_mono))
+        rms_global = np.sqrt(np.mean(y_mono**2))
+        crest_factor = peak / (rms_global if rms_global > 0 else 1)
+
+        # 2. Centróide Espectral (Média)
+        centroid = librosa.feature.spectral_centroid(y=y_mono, sr=sr)[0]
+        avg_centroid = np.mean(centroid)
+
+        # 3. Roll-off Espectral (Média)
+        rolloff = librosa.feature.spectral_rolloff(y=y_mono, sr=sr, roll_percent=0.85)[0]
+        avg_rolloff = np.mean(rolloff)
+
+        # 4. F0 (Fundamental) - Usando PYIN (pode ser pesado, mas é preciso)
+        # Ajustamos fmin/fmax para uma faixa razoável de instrumentos
+        f0, _, _ = librosa.pyin(
+            y_mono, 
+            fmin=librosa.note_to_hz('C2'), 
+            fmax=librosa.note_to_hz('C7'),
+            sr=sr
+        )
+        avg_f0 = np.nanmean(f0) if np.any(~np.isnan(f0)) else 0.0
+
+        return {
+            "sr": sr,
+            "duration": len(y_mono)/sr,
+            "crest_factor": crest_factor,
+            "centroid": avg_centroid,
+            "rolloff": avg_rolloff,
+            "f0": avg_f0
+        }
