@@ -1,0 +1,9 @@
+{
+    "selected_port": "CTkComboBox",
+    "selected_baud": "115200",
+    "selected_channels": [
+        1,
+        1
+    ],
+    "selected_duration": "10"
+}

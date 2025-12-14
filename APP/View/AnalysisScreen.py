@@ -57,7 +57,7 @@ class AnalysisScreen(ctk.CTkFrame):
             self.icons['analyze'] = ctk.CTkImage(Image.open(img_graph), size=(24, 24))
             img_export = resource_path(os.path.join("images", "export.png"))
             self.icons['export'] = ctk.CTkImage(Image.open(img_export), size=(24, 24))
-            img_home = resource_path(os.path.join("images", "Home.png"))
+            img_home = resource_path(os.path.join("images", "home.png"))
             self.icons['home'] = ctk.CTkImage(Image.open(img_home), size=(24, 24))
             img_audio = resource_path(os.path.join("images", "phone.png"))
             self.icons['phone'] = ctk.CTkImage(Image.open(img_audio), size=(24, 24))

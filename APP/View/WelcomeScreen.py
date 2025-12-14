@@ -101,7 +101,7 @@ class WelcomeScreen(ctk.CTkFrame):
             fg_color="#2b2b2b", 
             hover_color="#3a3a3a",    
             border_width=2, 
-            border_color=self.accent_color, # AQUI: Borda azul para indicar ação principal
+            border_color=self.accent_color,
             corner_radius=15
         )
         btn_audio.pack(pady=(0, 15))
@@ -112,14 +112,14 @@ class WelcomeScreen(ctk.CTkFrame):
             text=" Análise EMG",
             image=self.icon_emg,
             compound="left",
+            command=lambda: self.nav_controller.show_frame("EMGScreen"),
             width=320, 
             height=60,
             font=("Arial", 16, "bold"),
-            fg_color="transparent",        # Fundo transparente para diferenciar hierarquia
+            fg_color="#2b2b2b",      
             text_color_disabled="#555555",
             border_width=2, 
-            border_color="#333333",        # Borda cinza escuro
-            state="disabled", 
+            border_color=self.accent_color,
             corner_radius=15
         )
         btn_emg.pack()

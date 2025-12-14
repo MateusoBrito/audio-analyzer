@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 from View.WelcomeScreen import WelcomeScreen
 from View.AnalysisScreen import AnalysisScreen
+from View.EMGScreen import EMGScreen
 
 # Configuração global do tema
 ctk.set_appearance_mode("dark")
@@ -33,7 +34,7 @@ class App(ctk.CTk):
 
         # Inicializa as telas disponíveis
         # Passamos 'self' como o controller de navegação
-        for F in (WelcomeScreen, AnalysisScreen):
+        for F in (AnalysisScreen, EMGScreen, WelcomeScreen):
             page_name = F.__name__
             frame = F(parent=self.container, nav_controller=self)
             self.frames[page_name] = frame
@@ -41,7 +42,6 @@ class App(ctk.CTk):
             # Coloca todos os frames no mesmo lugar (grid 0,0)
             frame.grid(row=0, column=0, sticky="nsew")
 
-        # Inicia mostrando a tela de boas-vindas
         self.show_frame("WelcomeScreen")
 
     def show_frame(self, page_name):
