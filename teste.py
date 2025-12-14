@@ -1,113 +1,81 @@
-# ============================================================
-# Script de Análise de Áudio para Caracterização de Instrumento
-# ============================================================
-# Autor: Coloca o nome de todas e todos aqui, por favor.
-# Objetivo: caracterizar instrumentos em termos de
-# parâmetros temporais, espectrais e tempo-frequência.
-# ============================================================
-
-# -----------------------------
-# (1) Importação de bibliotecas
-# -----------------------------
-import librosa
-import librosa.display
-import numpy as np
-import matplotlib.pyplot as plt
+from numpy import sqrt, mean, std, square, abs, correlate, argmax, array
 from scipy.signal import hilbert
+from scipy.io import wavfile
+from matplotlib.pyplot import plot, xlabel, ylabel, title, legend, show
 
-# -----------------------------
-# (2) Carregar o arquivo de áudio
-# -----------------------------
-# Substitua 'meu_audio.wav' pelo caminho do seu arquivo
-y, sr = librosa.load("file_example_WAV_1MG.wav", sr=None)
+dados = [0.2, -0.4, 0.6, -0.8, 1.0, -1.0, 0.5, -0.3]
 
-# -----------------------------
-# (3) Análise no domínio do tempo
-# -----------------------------
-# 3.1 - Cálculo do envelope RMS
-frame_length = 2048
-hop_length = 512
-rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
+#Para Calcular o RMS use a seguinte sequência de funções
+#------------------------------------------------------------------------------
+#dados deve ser uma lista, vindo ou do ESP ou algum dado interno do programa.
+rms = sqrt(mean(square(dados)))
+#------------------------------------------------------------------------------
 
-# 3.2 - Cálculo do fator de crista (Crest Factor)
-peak = np.max(np.abs(y))
-rms_global = np.sqrt(np.mean(y**2))
-crest_factor = peak / rms_global
+#Para calcular o máximo e o mínimo de um lista
+#------------------------------------------------------------------------------
+#dados deve ser uma lista.
+maximo = max(dados)
+minimo = min(dados)
+#------------------------------------------------------------------------------
 
-print(f"Crest Factor: {crest_factor:.2f}")
 
-# -----------------------------
-# (4) Análise espectral (frequência)
-# -----------------------------
-# 4.1 - Espectro médio (FFT)
-fft = np.fft.fft(y)
-magnitude = np.abs(fft)[:len(fft)//2]
-freqs = np.fft.fftfreq(len(fft), 1/sr)[:len(fft)//2]
+#Neste caso, é para colocar estes valores ao lado dos gráficos de Hilbert, etc
+#------------------------------------------------------------------------------
 
-# 4.2 - Centróide espectral
-centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+#Ler um arquivo de áudio (estabelecer se estéreo ou mono. Se mono, um 
+#canal apenas. Se estéreo, aplicar para ambos canais.)
+fs, sinal = wavfile.read("file_example_WAV_1MG.wav")
+sinal = sinal.astype(float)
 
-# 4.3 - Roll-off espectral
-rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr, roll_percent=0.85)[0]
+if sinal.ndim == 2:
+    sinal = sinal[:, 0]  # canal esquerdo
 
-# -----------------------------
-# (5) Análise tempo-frequência
-# -----------------------------
-# 5.1 - Espectrograma STFT
-S = np.abs(librosa.stft(y, n_fft=2048, hop_length=hop_length))
-S_db = librosa.amplitude_to_db(S, ref=np.max)
+#Transformada de Hilbert
+sinal_analitico = hilbert(sinal)
+envelope = abs(sinal_analitico)
 
-# -----------------------------
-# (6) Extração de parâmetros adicionais
-# -----------------------------
-# 6.1 - Pitch tracking (f0)
-f0, voiced_flag, voiced_probs = librosa.pyin(y,
-                                             fmin=librosa.note_to_hz('C2'),
-                                             fmax=librosa.note_to_hz('C7'))
+#RMS
+rms = sqrt(mean(square(sinal)))
 
-# 6.2 - Envelope de amplitude via transformada de Hilbert
-analytic_signal = hilbert(y)
-amplitude_envelope = np.abs(analytic_signal)
+#Estimativa de pitch (simplificada via autocorrelação)
 
-# -----------------------------
-# (7) Visualizações
-# -----------------------------
-plt.figure(figsize=(14, 10))
+perfil = "robusto"
 
-# 7.1 - Onda + envelope RMS
-plt.subplot(3,1,1)
-librosa.display.waveshow(y, sr=sr, alpha=0.6)
-plt.plot(librosa.times_like(rms, sr=sr, hop_length=hop_length),
-         rms, color='r', label='RMS')
-plt.title("Forma de onda + Envelope RMS")
-plt.legend()
+# Perfil robusto (o usuário deve escolher entre Robusto ou Equilibrado
+if perfil == "robusto":
+    janela = int(0.2 * fs)
+    passo  = int(0.05 * fs)
+else:
+ # Perfil equilibrado
+    janela = int(0.1 * fs)
+    passo  = int(0.025 * fs)
 
-# 7.2 - Espectrograma
-plt.subplot(3,1,2)
-librosa.display.specshow(S_db, sr=sr, hop_length=hop_length,
-                         x_axis='time', y_axis='hz', cmap='magma')
-plt.colorbar(format="%+2.f dB")
-plt.title("Espectrograma (STFT)")
 
-# 7.3 - Centróide espectral ao longo do tempo
-plt.subplot(3,1,3)
-plt.semilogy(librosa.times_like(centroid, sr=sr, hop_length=hop_length),
-             centroid.T, label='Centróide espectral')
-plt.ylabel('Hz')
-plt.xlabel('Tempo (s)')
-plt.title("Centróide espectral")
-plt.legend()
+pitches = []
 
-plt.tight_layout()
-plt.show()
+for i in range(0, len(sinal) - janela, passo):
+    trecho = sinal[i:i+janela]
+    trecho = trecho - mean(trecho)  # remover DC
+    corr = correlate(trecho, trecho, mode="full")
+    corr = corr[len(corr)//2:]  # metade positiva
+    pico = argmax(corr[1:]) + 1
+    if pico > 0:
+        freq = fs / pico
+        pitches.append(freq)
 
-# -----------------------------
-# (8) Saída resumida
-# -----------------------------
-print("Resumo da análise:")
-print(f"- Taxa de amostragem: {sr} Hz")
-print(f"- Duração: {len(y)/sr:.2f} s")
-print(f"- Crest Factor: {crest_factor:.2f}")
-print(f"- Centróide espectral médio: {np.mean(centroid):.2f} Hz")
-print(f"- Roll-off espectral médio: {np.mean(rolloff):.2f} Hz")
-print(f"- Fundamental média (f0): {np.nanmean(f0):.2f} Hz")
+pitches = array(pitches)
+
+#Estatística do pitch
+media_pitch = mean(pitches)
+desvio_pitch = std(pitches)
+resultado = f"{media_pitch:.2f} ± {desvio_pitch:.2f} Hz"
+
+
+#Gráfico da variação do pitch (acrescentar este gráfico, por favor, se não tiver.
+plot(pitches, label="Pitch estimado (Hz)")
+xlabel("Janela de análise")
+ylabel("Frequência (Hz)")
+title("Variação do Pitch")
+legend()
+show()
+#------------------------------------------------------------------------------

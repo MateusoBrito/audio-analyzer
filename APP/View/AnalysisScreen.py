@@ -127,7 +127,13 @@ class AnalysisScreen(ctk.CTkFrame):
     # -------------------------------------------------------------------------
 
     def _on_upload_click(self):
-        file_path = filedialog.askopenfilename(filetypes=[("Arquivos WAV","*.wav"),("MP3","*.mp3")])
+        file_path = filedialog.askopenfilename(
+            filetypes=[
+                ("Arquivos de Áudio", "*.wav *.mp3"), 
+                ("Arquivos WAV", "*.wav"),
+                ("Arquivos MP3", "*.mp3")
+            ]
+        )
         if file_path:
             self.logic_controller.load_file(file_path)
             messagebox.showinfo("Carregado", f"Arquivo carregado:\n{os.path.basename(file_path)}")

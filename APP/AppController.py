@@ -2,9 +2,9 @@ import os
 import librosa
 import numpy as np
 from AudioAnalyzer import AudioAnalyzer
-# Importamos apenas o Dashboard, pois ele gerencia os outros internamente
 from PlotFrames import DashboardFrame
 from PlotExporter import PlotExporter
+from View.LoadingWindow import LoadingWindow
 
 class AppController:
     def __init__(self, ui_plot_container):
@@ -62,51 +62,61 @@ class AppController:
         Usado apenas quando carregamos um arquivo novo ou mudamos a seleção.
         """
         if not self.active_plot_frame: return
+
+        root = self.plot_container.winfo_toplevel()
+        loading = LoadingWindow(root, message="Calculando Gráficos...")
+        root.update()
         
-        # ... (Lógica de pegar active_filename igual antes) ...
-        filename_to_plot = self.active_filename
-        if not filename_to_plot and self.plot_list:
-            filename_to_plot = self.plot_list[0]['filename']
-        
-        if not filename_to_plot or filename_to_plot not in self.loaded_files:
-            self.active_plot_frame.clear()
+        try:
+            # ... (Lógica de pegar active_filename igual antes) ...
+            filename_to_plot = self.active_filename
+            if not filename_to_plot and self.plot_list:
+                filename_to_plot = self.plot_list[0]['filename']
+            
+            if not filename_to_plot or filename_to_plot not in self.loaded_files:
+                self.active_plot_frame.clear()
+                self.active_plot_frame.draw()
+                return
+
+            y, sr = self.loaded_files[filename_to_plot]
+
+            # --- A. DESENHA OS GRÁFICOS PESADOS (ESTÁTICOS) ---
+            # Só fazemos isso se mudou o arquivo principal
+            
+            # 1. Métricas
+            metrics_data = self.analyzer.get_advanced_metrics(y, sr)
+            if hasattr(self.active_plot_frame, 'update_metrics'):
+                self.active_plot_frame.update_metrics(metrics_data)
+
+            # 2. Waveform
+            times, y_data = self.analyzer.get_waveform_data(y, sr)
+            self.active_plot_frame.get_frame('Waveform').plot(times, y_data, sr)
+            
+            # 3. Spectrogram (O MAIS PESADO - Agora só roda aqui)
+            S_db = self.analyzer.get_spectrogram_data(y, sr)
+            self.active_plot_frame.get_frame('Spectrogram').plot(S_db, sr)
+
+            # 4. RMS
+            times_rms, rms_data = self.analyzer.get_rms_data(y, sr)
+            self.active_plot_frame.get_frame('RMS').plot(times_rms, rms_data)
+            
+            # 5. Hilbert
+            samples, env_data = self.analyzer.get_hilbert_data(y)
+            self.active_plot_frame.get_frame('Hilbert').plot(samples, env_data)
+            
+            if hasattr(self.active_plot_frame, 'update_all_grids'):
+                self.active_plot_frame.update_all_grids(self.grid_enabled)
+
+            # --- B. DESENHA O GRÁFICO LEVE (DINÂMICO) ---
+            self._update_fft_graph() # Chama a função auxiliar
+            
+            # Finaliza
             self.active_plot_frame.draw()
-            return
-
-        y, sr = self.loaded_files[filename_to_plot]
-
-        # --- A. DESENHA OS GRÁFICOS PESADOS (ESTÁTICOS) ---
-        # Só fazemos isso se mudou o arquivo principal
+        except Exception as e:
+            print(f"Erro ao desenhar: {e}")
         
-        # 1. Métricas
-        metrics_data = self.analyzer.get_advanced_metrics(y, sr)
-        if hasattr(self.active_plot_frame, 'update_metrics'):
-            self.active_plot_frame.update_metrics(metrics_data)
-
-        # 2. Waveform
-        times, y_data = self.analyzer.get_waveform_data(y, sr)
-        self.active_plot_frame.get_frame('Waveform').plot(times, y_data, sr)
-        
-        # 3. Spectrogram (O MAIS PESADO - Agora só roda aqui)
-        S_db = self.analyzer.get_spectrogram_data(y, sr)
-        self.active_plot_frame.get_frame('Spectrogram').plot(S_db, sr)
-
-        # 4. RMS
-        times_rms, rms_data = self.analyzer.get_rms_data(y, sr)
-        self.active_plot_frame.get_frame('RMS').plot(times_rms, rms_data)
-        
-        # 5. Hilbert
-        samples, env_data = self.analyzer.get_hilbert_data(y)
-        self.active_plot_frame.get_frame('Hilbert').plot(samples, env_data)
-        
-        if hasattr(self.active_plot_frame, 'update_all_grids'):
-            self.active_plot_frame.update_all_grids(self.grid_enabled)
-
-        # --- B. DESENHA O GRÁFICO LEVE (DINÂMICO) ---
-        self._update_fft_graph() # Chama a função auxiliar
-        
-        # Finaliza
-        self.active_plot_frame.draw()
+        finally:
+            loading.destroy()
 
     def _update_fft_graph(self):
         """
