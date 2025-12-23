@@ -151,13 +151,16 @@ class AnalysisScreen(ctk.CTkFrame):
             callback=self._on_files_selected
         )
 
-    def _on_files_selected(self, selection_data, main_file):
+    # Em AnalysisScreen.py
+
+    def _on_files_selected(self, selection_data, main_file, active_charts): # Adicionado active_charts
         """
         Recebe:
-        - selection_data: Lista de tuplas [(nome_orig, apelido), ...] para o FFT
-        - main_file: String com o nome do arquivo principal para Onda/Spec/etc
+        - selection_data: Lista de arquivos para comparação
+        - main_file: Arquivo principal
+        - active_charts: Lista de strings com os nomes dos gráficos a exibir
         """
-        self.logic_controller.update_plot_selection(selection_data, main_file)
+        self.logic_controller.update_plot_selection(selection_data, main_file, active_charts)
         
     def _on_export_click(self):
         """Exporta os gráficos atuais."""

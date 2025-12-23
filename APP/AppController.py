@@ -1,6 +1,7 @@
 import os
 import librosa
 import numpy as np
+from scipy.io.wavfile import read
 from AudioAnalyzer import AudioAnalyzer
 from PlotFrames import DashboardFrame
 from PlotExporter import PlotExporter
@@ -23,18 +24,29 @@ class AppController:
         self.fm = 20000
         self.fft_scale = 1
 
+        self.active_charts = [
+            "Waveform", "Spectrogram", "Pitch", "SFFT3D", 
+            "Hilbert", "FFT", "RMS"
+        ]
+
     def load_file(self, file_path):
-        """Carrega áudio e armazena na memória."""
+        """
+        Lê um arquivo WAV e retorna (fs, x_float).
+        Converte para float entre [-1, 1] se estiver em inteiro.
+        """
         try:
-            y, sr = librosa.load(file_path, sr=None, mono=False)
+            fs, x = read(file_path)
+            if x.dtype.kind in ('i', 'u'):
+                max_val = 2 ** (8 * x.dtype.itemsize - 1)
+                x = x.astype('float32') / max_val
+            else:
+                x = x.astype('float32')
+            if len(x.shape) == 2 and x.shape[1] > 1:
+                x = (x[:, 0] + x[:, 1]) / 2.0
+
             filename = os.path.basename(file_path)
 
-            if y.ndim == 1:
-                y = np.column_stack((y, y)) 
-            elif y.shape[0] == 2: 
-                y = y.T 
-            
-            self.loaded_files[filename] = (y, sr)
+            self.loaded_files[filename] = (x, fs)
             self.active_filename = filename
             print(f"Arquivo carregado: {filename}")
         except Exception as e:
@@ -54,21 +66,18 @@ class AppController:
         self.active_plot_frame.pack(fill="both", expand=True)
         
         # Desenha se já houver dados
+        self._update_frames_visibility()
         self.draw_plots()
 
     def draw_plots(self):
-        """
-        Desenha o Dashboard COMPLETO. 
-        Usado apenas quando carregamos um arquivo novo ou mudamos a seleção.
-        """
+        """Desenha APENAS o que está na lista self.active_charts."""
         if not self.active_plot_frame: return
 
         root = self.plot_container.winfo_toplevel()
-        loading = LoadingWindow(root, message="Calculando Gráficos...")
+        loading = LoadingWindow(root, message="Processando...")
         root.update()
         
         try:
-            # ... (Lógica de pegar active_filename igual antes) ...
             filename_to_plot = self.active_filename
             if not filename_to_plot and self.plot_list:
                 filename_to_plot = self.plot_list[0]['filename']
@@ -78,52 +87,67 @@ class AppController:
                 self.active_plot_frame.draw()
                 return
 
-            y, sr = self.loaded_files[filename_to_plot]
+            x, fs = self.loaded_files[filename_to_plot]
 
-            # --- A. DESENHA OS GRÁFICOS PESADOS (ESTÁTICOS) ---
-            # Só fazemos isso se mudou o arquivo principal
+            # --- OTIMIZAÇÃO REAL: CÁLCULO SOB DEMANDA ---
+
+            # 1. Waveform
+            if "Waveform" in self.active_charts:
+                t_wave, y_wave = self.analyzer.get_waveform_data(x, fs)
+                self.active_plot_frame.get_frame('Waveform').plot(t_wave, y_wave)
             
-            # 1. Métricas
-            metrics_data = self.analyzer.get_advanced_metrics(y, sr)
+            # 2. Espectrograma
+            if "Spectrogram" in self.active_charts:
+                t_spec, f_spec, Sxx_db = self.analyzer.calcular_espectrograma(
+                    x, fs, fmin=self.fi, fmax=self.fm
+                )
+                self.active_plot_frame.get_frame('Spectrogram').plot(t_spec, f_spec, Sxx_db)
+
+            # 3. Pitch (Via Hilbert - Verde)
+            if "Pitch" in self.active_charts:
+                t_pitch, f0_data = self.analyzer.get_instantaneous_frequency(x, fs)
+                self.active_plot_frame.get_frame('Pitch').plot(t_pitch, f0_data)
+
+            # 4. SFFT 3D (O mais pesado de todos!)
+            if "SFFT3D" in self.active_charts:
+                T, F_grid, Zxx_mag = self.analyzer.get_sfft_3d_data(x, fs, fmin=self.fi, fmax=self.fm)
+                self.active_plot_frame.get_frame('SFFT3D').plot(T, F_grid, Zxx_mag)
+
+            # 5. Hilbert (Envoltória - Vermelho)
+            if "Hilbert" in self.active_charts:
+                t_hilbert, env_hilbert = self.analyzer.get_hilbert_envelope(x, fs)
+                self.active_plot_frame.get_frame('Hilbert').plot(t_hilbert, env_hilbert)
+
+            # 6. RMS
+            if "RMS" in self.active_charts:
+                t_rms, y_rms = self.analyzer.get_rms_data(x, fs)
+                self.active_plot_frame.get_frame('RMS').plot(t_rms, y_rms)
+
+            # 7. FFT e Métricas (Sempre calculamos métricas pois são rápidas e úteis no topo)
+            metrics_data = self.analyzer.get_metrics(x, fs, fmin=self.fi, fmax=self.fm)
             if hasattr(self.active_plot_frame, 'update_metrics'):
                 self.active_plot_frame.update_metrics(metrics_data)
 
-            # 2. Waveform
-            times, y_data = self.analyzer.get_waveform_data(y, sr)
-            self.active_plot_frame.get_frame('Waveform').plot(times, y_data, sr)
-            
-            # 3. Spectrogram (O MAIS PESADO - Agora só roda aqui)
-            S_db = self.analyzer.get_spectrogram_data(y, sr)
-            self.active_plot_frame.get_frame('Spectrogram').plot(S_db, sr)
-
-            # 4. RMS
-            times_rms, rms_data = self.analyzer.get_rms_data(y, sr)
-            self.active_plot_frame.get_frame('RMS').plot(times_rms, rms_data)
-            
-            # 5. Hilbert
-            samples, env_data = self.analyzer.get_hilbert_data(y)
-            self.active_plot_frame.get_frame('Hilbert').plot(samples, env_data)
-            
-            if hasattr(self.active_plot_frame, 'update_all_grids'):
-                self.active_plot_frame.update_all_grids(self.grid_enabled)
-
-            # --- B. DESENHA O GRÁFICO LEVE (DINÂMICO) ---
-            self._update_fft_graph() # Chama a função auxiliar
+            if "FFT" in self.active_charts:
+                self._update_fft_graph()
             
             # Finaliza
+            if hasattr(self.active_plot_frame, 'update_all_grids'):
+                self.active_plot_frame.update_all_grids(self.grid_enabled)
+            
             self.active_plot_frame.draw()
+            
         except Exception as e:
             print(f"Erro ao desenhar: {e}")
+            import traceback
+            traceback.print_exc()
         
         finally:
             loading.destroy()
 
     def _update_fft_graph(self):
-        """
-        Atualiza APENAS o gráfico FFT.
-        Muito rápido, usado para sliders e ajustes de visualização.
-        """
-        if not self.active_plot_frame: return
+        # Verifica também aqui para evitar processamento desnecessário nos sliders
+        if not self.active_plot_frame or "FFT" not in self.active_charts: return
 
         fft_frame = self.active_plot_frame.get_frame('FFT')
         fft_frame.reset_axes(self.grid_enabled)
@@ -132,24 +156,26 @@ class AppController:
             fname = plot_item['filename']
             if fname not in self.loaded_files: continue
             
-            y_fft, sr_fft = self.loaded_files[fname]
+            x, fs = self.loaded_files[fname]
             
-            # Aqui aplicamos os filtros (fi, fm, scale) que mudam rápido
-            freq, L, R = self.analyzer.get_fft_data(
-                y_fft, sr_fft, self.fi, self.fm, self.fft_scale
+            f, mag = self.analyzer.calcular_fft_basica(
+                x, fs, fmin=self.fi, fmax=self.fm
             )
+
+            if self.fft_scale > 1:
+                step = int(self.fft_scale)
+                f = f[::step]
+                mag = mag[::step]
             
             label_text = plot_item.get('label', fname)
-            fft_frame.add_plot(freq, L, R, label_text, plot_item['color'])
+            fft_frame.add_plot(f, mag, label_text, plot_item['color'])
         
-        # Manda desenhar apenas o quadro do FFT (se possível) ou tudo
-        # Como o draw_idle é eficiente, chamar .draw() no pai funciona bem
-        # se os outros gráficos não tiverem sido limpos.
         self.active_plot_frame.draw()
     
     def update_analysis_params(self, fi=None, fm=None, fft_scale=None):
         """Chamado pelos sliders/botão aplicar"""
         changed = False
+
         if fi is not None and fi != self.fi: 
             self.fi = fi
             changed = True
@@ -160,36 +186,53 @@ class AppController:
             self.fft_scale = fft_scale
             changed = True
         
-        # SE MUDOU PARÂMETRO -> Chama só o update leve do FFT
+        # SE MUDOU PARÂMETRO 
         if changed and self.plot_list:
-            self._update_fft_graph()
+            self.draw_plots()
 
-    def update_plot_selection(self, selection_data, main_file):
-        """
-        Atualiza a lista de plots e define explicitamente o arquivo principal.
-        """
+    # Em AppController.py
+
+    # Atualize a assinatura do método
+    def update_plot_selection(self, selection_data, main_file, active_charts=None):
+        """Atualiza quais arquivos e QUAIS GRÁFICOS serão mostrados."""
         self.plot_list = []
         
-        # 1. Monta a lista para o FFT (Vários arquivos)
+        # Atualiza lista de arquivos para FFT
         for i, (filename, label) in enumerate(selection_data):
             if filename in self.loaded_files:
                 color = f"C{i % 10}" 
                 self.plot_list.append({
-                    'filename': filename,
-                    'label': label,
-                    'color': color
+                    'filename': filename, 'label': label, 'color': color
                 })
         
-        # 2. Define o arquivo ativo (Único) com base na escolha do usuário
+        # Atualiza arquivo principal
         if main_file and main_file in self.loaded_files:
             self.active_filename = main_file
         elif self.plot_list:
-            # Fallback: se não escolheu nada (improvável), pega o primeiro da lista
             self.active_filename = self.plot_list[0]['filename']
         else:
             self.active_filename = None
+
+        # OTIMIZAÇÃO: Atualiza a lista de gráficos ativos
+        if active_charts is not None:
+            self.active_charts = active_charts
+            self._update_frames_visibility()
             
         self.draw_plots()
+    
+    def _update_frames_visibility(self):
+        """Esconde visualmente os frames que não serão usados."""
+        if not self.active_plot_frame: return
+        
+        all_possible_charts = ["Waveform", "Spectrogram", "Pitch", "SFFT3D", "Hilbert", "RMS", "FFT"]
+        
+        for chart in all_possible_charts:
+            frame = self.active_plot_frame.get_frame(chart)
+            if frame:
+                if chart in self.active_charts:
+                    frame.pack(fill="x", expand=True, pady=5, padx=5)
+                else:
+                    frame.pack_forget()
 
     def add_active_file_to_plot(self):
         """Botão 'Analisar' rápido (sem dialog)"""
@@ -216,15 +259,6 @@ class AppController:
             elif hasattr(self.active_plot_frame, 'set_grid'):
                 self.active_plot_frame.set_grid(self.grid_enabled)
     
-    def update_analysis_params(self, fi=None, fm=None, fft_scale=None):
-        if fi is not None: self.fi = fi
-        if fm is not None: self.fm = fm
-        if fft_scale is not None: self.fft_scale = fft_scale
-        
-        # Redesenha apenas se já houver gráficos na tela
-        if self.plot_list:
-            self.draw_plots()
-    
     def clean(self):
         """Limpa dados e tela."""
         self.loaded_files = {}
@@ -233,7 +267,9 @@ class AppController:
         self.draw_plots() # Isso vai limpar a tela pois plot_list está vazia
     
     def export_graph(self, dir_path: str):
-        """Exporta PNGs de todos os gráficos."""
+        """
+        Exporta PNGs.
+        """
         if not self.plot_list:
             raise ValueError("Nenhum gráfico para exportar!")
         
@@ -243,14 +279,22 @@ class AppController:
             filename = plot_item['filename']
             if filename not in self.loaded_files: continue
             
-            y_raw, sr_raw = self.loaded_files[filename]
+            x_raw, fs_raw = self.loaded_files[filename]
             
-            freq, L, R = self.analyzer.get_fft_data(
-                y_raw, sr_raw, self.fi, self.fm, self.fft_scale
+            # Correção: Usa calcular_fft_basica e pega f, mag
+            f, mag = self.analyzer.calcular_fft_basica(
+                x_raw, fs_raw, fmin=self.fi, fmax=self.fm
             )
             
+            # Aplica scale se necessário (opcional na exportação, mas bom para consistência)
+            if self.fft_scale > 1:
+                step = int(self.fft_scale)
+                f = f[::step]
+                mag = mag[::step]
+            
             fft_export_data.append({
-                'freq': freq, 'L': L, 'R': R,
+                'freq': f, 
+                'mag': mag,  # Chave nova: 'mag' em vez de 'L'/'R'
                 'label': plot_item.get('label', filename),
                 'color': plot_item['color']
             })
@@ -264,7 +308,7 @@ class AppController:
         try:
             return self.exporter.save_dashboard(
                 dir_path=dir_path,
-                active_audio=active_audio_data,
+                active_audio=active_audio_data, # Tupla (x, fs)
                 plot_list=fft_export_data,
                 analyzer=self.analyzer,
                 grid_enabled=self.grid_enabled,

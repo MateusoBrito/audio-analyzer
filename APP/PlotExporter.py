@@ -113,29 +113,30 @@ class PlotExporter:
         return fname
 
     def _save_fft_comparison(self, dir_path, ts, plot_list, grid):
-        """Salva o FFT Esquerdo e Direito com todas as linhas da plot_list"""
+        """Salva o FFT Mono (Comparativo)"""
         saved = []
         
-        for canal, key_idx, nome_arq in [('esquerdo', 'L', 'fft_L'), ('direito', 'R', 'fft_R')]:
-            fig, ax = self._create_figure()
-            
-            for plot_data in plot_list:
-                ax.plot(
-                    plot_data['freq'], 
-                    plot_data[key_idx], 
-                    color=plot_data['color'], 
-                    label=plot_data['label']
-                )
-            
-            ax.set_title(f"FFT - Canal {canal.capitalize()}")
-            ax.set_xlabel("Frequência (Hz)")
-            ax.set_ylabel("Amplitude")
-            ax.legend(fontsize=8)
-            ax.grid(grid, linestyle=':', alpha=0.5)
-            
-            fname = f"{nome_arq}_{ts}.png"
-            fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
-            plt.close(fig)
-            saved.append(fname)
+        # Cria apenas UMA figura (Mono)
+        fig, ax = self._create_figure()
+        
+        for plot_data in plot_list:
+            # Agora usamos 'mag' e 'freq'
+            ax.plot(
+                plot_data['freq'], 
+                plot_data['mag'], 
+                color=plot_data['color'], 
+                label=plot_data['label']
+            )
+        
+        ax.set_title(f"FFT - Comparativo (Mono)")
+        ax.set_xlabel("Frequência (Hz)")
+        ax.set_ylabel("Magnitude")
+        ax.legend(fontsize=8)
+        ax.grid(grid, linestyle=':', alpha=0.5)
+        
+        fname = f"fft_comparison_{ts}.png"
+        fig.savefig(os.path.join(dir_path, fname), bbox_inches='tight')
+        plt.close(fig)
+        saved.append(fname)
             
         return saved
