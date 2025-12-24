@@ -89,7 +89,8 @@ class AppController:
 
             x, fs = self.loaded_files[filename_to_plot]
 
-            # --- OTIMIZAÇÃO REAL: CÁLCULO SOB DEMANDA ---
+            if "FFT" in self.active_charts:
+                self._update_fft_graph()
 
             # 1. Waveform
             if "Waveform" in self.active_charts:
@@ -127,9 +128,6 @@ class AppController:
             metrics_data = self.analyzer.get_metrics(x, fs, fmin=self.fi, fmax=self.fm)
             if hasattr(self.active_plot_frame, 'update_metrics'):
                 self.active_plot_frame.update_metrics(metrics_data)
-
-            if "FFT" in self.active_charts:
-                self._update_fft_graph()
             
             # Finaliza
             if hasattr(self.active_plot_frame, 'update_all_grids'):
@@ -221,18 +219,54 @@ class AppController:
         self.draw_plots()
     
     def _update_frames_visibility(self):
-        """Esconde visualmente os frames que não serão usados."""
+        """Reorganiza o layout em GRID (2 colunas) para evitar buracos."""
         if not self.active_plot_frame: return
         
-        all_possible_charts = ["Waveform", "Spectrogram", "Pitch", "SFFT3D", "Hilbert", "RMS", "FFT"]
+        # 1. Ordem de exibição desejada
+        ordered_charts = [
+            "FFT",
+            "Waveform", 
+            "Spectrogram", 
+            "Pitch", 
+            "SFFT3D", 
+            "Hilbert", 
+            "HilbertFreq",  
+            "RMS"
+        ]
         
-        for chart in all_possible_charts:
-            frame = self.active_plot_frame.get_frame(chart)
-            if frame:
-                if chart in self.active_charts:
-                    frame.pack(fill="x", expand=True, pady=5, padx=5)
-                else:
-                    frame.pack_forget()
+        # 2. Reseta o layout (Remove tudo do grid)
+        # Nota: metrics_view fica sempre fixo no row=0, não removemos ele
+        for frame in self.active_plot_frame.frames.values():
+            frame.grid_forget()
+        
+        # 3. Distribui os ativos em 2 colunas
+        current_row = 1 # Começa na linha 1 (a 0 é das métricas)
+        current_col = 0
+        
+        for chart_name in ordered_charts:
+            if chart_name in self.active_charts:
+                frame = self.active_plot_frame.get_frame(chart_name)
+                if frame:
+                    # Casos especiais: Gráficos muito largos ou importantes podem ocupar 2 colunas
+                    # Por exemplo, se quiser que o FFT ou 3D ocupe a linha toda:
+                    if chart_name in ["FFT", "SFFT3D"] and False: # Mude False para True se quiser destaque
+                        # Se já estamos na coluna 1, avança para a próxima linha para começar limpo
+                        if current_col == 1:
+                            current_row += 1
+                            current_col = 0
+                        
+                        frame.grid(row=current_row, column=0, columnspan=2, sticky="ew", pady=5, padx=5)
+                        current_row += 1
+                        current_col = 0 # Próximo começa na esquerda
+                    else:
+                        # Padrão: Ocupa 1 coluna
+                        frame.grid(row=current_row, column=current_col, sticky="ew", pady=5, padx=5)
+                        
+                        # Avança a posição
+                        current_col += 1
+                        if current_col > 1: # Se passou da coluna 1 (foi pra 2), reseta
+                            current_col = 0
+                            current_row += 1
 
     def add_active_file_to_plot(self):
         """Botão 'Analisar' rápido (sem dialog)"""
@@ -265,6 +299,25 @@ class AppController:
         self.active_filename = None
         self.plot_list = []
         self.draw_plots() # Isso vai limpar a tela pois plot_list está vazia
+
+    def toggle_zoom_mode(self):
+        """Alterna entre modo Zoom e Normal."""
+        if not self.active_plot_frame: return False
+        
+        self.zoom_mode_active = not self.zoom_mode_active
+        
+        # Chama o Dashboard para aplicar em todos
+        self.active_plot_frame.set_zoom_mode(self.zoom_mode_active)
+        
+        return self.zoom_mode_active # Retorna estado para mudar cor do botão na View
+
+    def reset_zoom(self):
+        """Reseta todos os gráficos."""
+        if self.active_plot_frame:
+            self.active_plot_frame.reset_all_zooms()
+            # Opcional: Desativar o modo zoom ao resetar
+            # self.zoom_mode_active = False
+            # self.active_plot_frame.set_zoom_mode(False)
     
     def export_graph(self, dir_path: str):
         """

@@ -3,6 +3,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
 import numpy as np
 from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.widgets import RectangleSelector
 
 # Cor de fundo do tema (Cinza Escuro do CTk)
 THEME_COLOR = '#2b2b2b'
@@ -11,13 +12,14 @@ class BasePlotFrame(ctk.CTkFrame):
     def __init__(self, master, **kwargs):
         super().__init__(master, fg_color="transparent", **kwargs)
         
-        # Cria a figura manualmente (sem criar eixos automaticamente)
         self.fig = plt.Figure(facecolor=THEME_COLOR, figsize=(5, 4), dpi=100)
-        
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         
+        self.selector = None
+        self.original_xlim = None
+        self.original_ylim = None
+
         widget = self.canvas.get_tk_widget()
-        # Configura o fundo do widget para a cor do tema
         widget.configure(bg=THEME_COLOR, highlightthickness=0) 
         widget.pack(fill="both", expand=True)
     
@@ -36,6 +38,73 @@ class BasePlotFrame(ctk.CTkFrame):
     
     def draw(self):
         # draw_idle é mais seguro para evitar erros de thread/inicialização
+        self.canvas.draw_idle()
+    
+    def enable_zoom_mode(self):
+        """Ativa a ferramenta de seleção retangular."""
+        # Pega o eixo atual (Current Axes)
+        if not self.fig.axes: return # Se não tiver gráfico, ignora
+        ax = self.fig.gca() 
+        
+        # Ignora gráficos 3D (eles não suportam RectangleSelector 2D)
+        if hasattr(ax, 'name') and ax.name == '3d':
+            return
+
+        # Salva os limites originais se for a primeira vez ativando
+        if self.original_xlim is None:
+            self.original_xlim = ax.get_xlim()
+            self.original_ylim = ax.get_ylim()
+
+        # Cria ou reativa o seletor
+        if self.selector:
+            self.selector.set_active(True)
+        else:
+            self.selector = RectangleSelector(
+                ax, self._on_select_zoom,
+                useblit=True,
+                button=[1], # Botão esquerdo
+                minspanx=5, minspany=5,
+                spancoords='pixels',
+                interactive=True
+            )
+            
+    def disable_zoom_mode(self):
+        """Desativa a ferramenta de seleção."""
+        if self.selector:
+            self.selector.set_active(False)
+            self.selector.set_visible(False) # Esconde o retângulo se ficou algum
+            self.canvas.draw_idle()
+
+    def reset_zoom(self):
+        """Volta para o visual original."""
+        if not self.fig.axes: return
+        ax = self.fig.gca()
+        
+        # Se tivermos salvado os limites, restaura. Se não, usa autoscale.
+        if self.original_xlim:
+            ax.set_xlim(self.original_xlim)
+            ax.set_ylim(self.original_ylim)
+        else:
+            ax.autoscale()
+            
+        self.canvas.draw_idle()
+        
+        # Opcional: Limpa os originais para pegar novos na próxima
+        self.original_xlim = None 
+        self.original_ylim = None
+
+    def _on_select_zoom(self, eclick, erelease):
+        """Callback chamado quando você solta o mouse após desenhar o retângulo."""
+        if not self.fig.axes: return
+        ax = self.fig.gca()
+        
+        x1, y1 = eclick.xdata, eclick.ydata
+        x2, y2 = erelease.xdata, erelease.ydata
+        
+        # Aplica o Zoom
+        ax.set_xlim(min(x1, x2), max(x1, x2))
+        ax.set_ylim(min(y1, y2), max(y1, y2))
+        
         self.canvas.draw_idle()
 
 class FFTPlotFrame(BasePlotFrame):
@@ -114,7 +183,6 @@ class SpectrogramPlotFrame(BasePlotFrame):
             else:
                 spine.set_visible(False)
         
-        # Usando pcolormesh para suportar eixos cortados (fmin/fmax)
         img = ax.pcolormesh(t, f, S_db, shading='gouraud', cmap='inferno')
         
         cbar = self.fig.colorbar(img, ax=ax, format='%+2.0f dB')
@@ -172,9 +240,9 @@ class SFFT3DPlotFrame(BasePlotFrame):
             T, F, Zxx_mag, 
             cmap='viridis', 
             edgecolor='none', 
-            rstride=8,  # Aumente aqui (era 2)
-            cstride=8,  # Aumente aqui (era 2)
-            antialiased=False # Desligar antialias também ajuda na performance
+            rstride=8, 
+            cstride=8,  
+            antialiased=False 
         )
         
         ax.set_title("Espectro 3D (SFFT)", color="white")
@@ -184,24 +252,6 @@ class SFFT3DPlotFrame(BasePlotFrame):
         
         ax.view_init(elev=30, azim=-60)
         
-        self.draw()
-
-class HilbertPlotFrame(BasePlotFrame):
-    def plot(self, samples, envelope_data):
-        self.clear()
-        ax = self.fig.add_subplot(111)
-        ax.set_facecolor(THEME_COLOR)
-        
-        ax.tick_params(colors="white")
-        ax.spines["bottom"].set_color("white")
-        ax.spines["left"].set_color("white")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-        ax.plot(samples, envelope_data, color='purple')
-        ax.set_title("Envelope de Hilbert", color="white")
-        ax.set_xlabel("Amostras", color="white")
-        ax.set_ylabel("Amplitude", color="white")
         self.draw()
 
 class RMSPlotFrame(BasePlotFrame):
@@ -252,6 +302,7 @@ class MetricsFrame(ctk.CTkFrame):
         for label in self.labels.values():
             label.configure(text="--")
 
+# 3 hilbert???
 class HilbertFreqPlotFrame(BasePlotFrame):
     def plot(self, times, freq_data):
         self.clear()
@@ -300,66 +351,64 @@ class HilbertPlotFrame(BasePlotFrame):
         
         self.draw()
 
+class HilbertPlotFrame(BasePlotFrame):
+    def plot(self, samples, envelope_data):
+        self.clear()
+        ax = self.fig.add_subplot(111)
+        ax.set_facecolor(THEME_COLOR)
+        
+        ax.tick_params(colors="white")
+        ax.spines["bottom"].set_color("white")
+        ax.spines["left"].set_color("white")
+        ax.spines["top"].set_visible(False)
+        ax.spines["right"].set_visible(False)
+
+        ax.plot(samples, envelope_data, color='purple')
+        ax.set_title("Envelope de Hilbert", color="white")
+        ax.set_xlabel("Amostras", color="white")
+        ax.set_ylabel("Amplitude", color="white")
+        self.draw()
+
 class DashboardFrame(ctk.CTkScrollableFrame):
     def __init__(self, master):
         super().__init__(master, label_text="Dashboard de Análise")
         self.frames = {}
         
-        # 1. Métricas
+        # Configura o Grid: 2 colunas com peso igual (expandem juntas)
+        self.grid_columnconfigure((0, 1), weight=1)
+        
+        # 1. Métricas (Topo - Ocupa as 2 colunas)
         self.metrics_view = MetricsFrame(self)
-        self.metrics_view.pack(fill="x", expand=True, pady=(0, 10), padx=5)
+        self.metrics_view.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 10), padx=5)
         
-        # 2. FFT (Mono)
+        # --- CRIAÇÃO DOS FRAMES (Sem posicionar ainda) ---
+        # Apenas instanciamos aqui. O AppController vai decidir onde colocar com .grid()
         self.frames['FFT'] = FFTPlotFrame(self, height=600)
-        self.frames['FFT'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['FFT'].pack_propagate(False)
-
-        self.frames['SFFT3D'] = SFFT3DPlotFrame(self, height=500) # Mais alto para caber bem
-        self.frames['SFFT3D'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['SFFT3D'].configure(height=500)
-
-        # 4. Espectrograma
-        self.frames['Spectrogram'] = SpectrogramPlotFrame(self)
-        self.frames['Spectrogram'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['Spectrogram'].configure(height=250)
-
-        # 3. Waveform
         self.frames['Waveform'] = WaveformPlotFrame(self)
-        self.frames['Waveform'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['Waveform'].configure(height=250) 
-        
-        # 5. Pitch (NOVO)
+        self.frames['Spectrogram'] = SpectrogramPlotFrame(self)
         self.frames['Pitch'] = PitchPlotFrame(self)
-        self.frames['Pitch'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['Pitch'].configure(height=250)
-        
-        # 6. RMS
+        self.frames['SFFT3D'] = SFFT3DPlotFrame(self, height=500)
+        self.frames['Hilbert'] = HilbertPlotFrame(self)
+        self.frames['HilbertFreq'] = HilbertFreqPlotFrame(self)
         self.frames['RMS'] = RMSPlotFrame(self)
-        self.frames['RMS'].pack(fill="x", expand=True, pady=5, padx=5)
+        
+        # Configura altura inicial (opcional, pois o grid ajusta)
+        self.frames['Waveform'].configure(height=250)
+        self.frames['Spectrogram'].configure(height=250)
+        self.frames['Pitch'].configure(height=250)
+        self.frames['Hilbert'].configure(height=250)
+        self.frames['HilbertFreq'].configure(height=250)
         self.frames['RMS'].configure(height=250)
 
-        # Adicione o Gráfico Verde aqui
-        self.frames['HilbertFreq'] = HilbertFreqPlotFrame(self)
-        self.frames['HilbertFreq'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['HilbertFreq'].configure(height=250)
-
-        # O HilbertPlotFrame (Vermelho) já deve estar 
-        self.frames['Hilbert'] = HilbertPlotFrame(self)
-        self.frames['Hilbert'].pack(fill="x", expand=True, pady=5, padx=5)
-        self.frames['Hilbert'].configure(height=250)
-
     def get_frame(self, name):
-        """Retorna o frame solicitado pelo nome."""
         return self.frames.get(name)
 
     def clear(self):
-        """Limpa todos os gráficos e métricas."""
         for frame in self.frames.values():
             frame.clear()
         self.metrics_view.reset()
 
     def draw(self):
-        """Redesenha todos os gráficos."""
         for frame in self.frames.values():
             frame.draw()
     
@@ -367,7 +416,19 @@ class DashboardFrame(ctk.CTkScrollableFrame):
         self.metrics_view.update_metrics(data)
     
     def update_all_grids(self, enabled):
-        """Comanda todos os gráficos do dashboard a mudar a grade."""
         for frame in self.frames.values():
             if hasattr(frame, 'set_grid'):
                 frame.set_grid(enabled)
+    
+    def set_zoom_mode(self, enabled):
+        """Ativa/Desativa zoom em TODOS os gráficos 2D."""
+        for frame in self.frames.values():
+            if enabled:
+                frame.enable_zoom_mode()
+            else:
+                frame.disable_zoom_mode()
+    
+    def reset_all_zooms(self):
+        """Reseta a visão de todos."""
+        for frame in self.frames.values():
+            frame.reset_zoom()

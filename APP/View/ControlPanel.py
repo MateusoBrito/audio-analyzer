@@ -58,6 +58,28 @@ class ControlPanel(ctk.CTkFrame):
         )
         self.btn_apply.pack(fill="x", padx=15, pady=(15, 5))
 
+        self.zoom_switch = ctk.CTkSwitch(
+            self, 
+            text="Modo Zoom", 
+            command=self._on_toggle_zoom,
+            onvalue=True, 
+            offvalue=False,
+            font=self.BODY_FONT
+        )
+        self.zoom_switch.pack(fill="x", padx=15, pady=10)
+        # ---------------------------
+
+        # Botão Resetar Zoom (Útil se o usuário se perder)
+        self.btn_reset_zoom = ctk.CTkButton(
+            self, 
+            text="Resetar Zoom", 
+            command=self._on_reset_zoom,
+            fg_color="transparent", 
+            border_width=1, 
+            border_color="gray",
+        )
+        self.btn_reset_zoom.pack(fill="x", padx=15, pady=5)
+
         # Botão Grade
         self.btn_grid = ctk.CTkButton(
             self, 
@@ -138,3 +160,15 @@ class ControlPanel(ctk.CTkFrame):
     
     def _on_clear_click(self):
         self.controller.clean()
+    
+    def _on_toggle_zoom(self):
+        # O switch retorna 1 (True) ou 0 (False)
+        is_active = self.zoom_switch.get()
+        # Chama o controller (método que criamos antes)
+        self.controller.active_plot_frame.set_zoom_mode(is_active)
+
+    def _on_reset_zoom(self):
+        self.controller.reset_zoom()
+        # Se quiser desligar o switch ao resetar, descomente abaixo:
+        # self.zoom_switch.deselect()
+        # self.controller.active_plot_frame.set_zoom_mode(False)

@@ -7,6 +7,11 @@ class AudioAnalyzer:
     Responsável por todos os cálculos de análise de áudio.
     """
     def calcular_fft_basica(self, x, fs, fmin=None, fmax=None):
+        """
+        Calcula FFT de magnitude unilateral (rfft).
+        Retorna (f, Xmag), onde f são frequências em Hz e Xmag magnitudes.
+        Permite limitar a faixa de frequências com fmin e fmax.
+        """
         N = len(x)
         X = rfft(x)
         f = rfftfreq(N, d=1.0/fs)
@@ -19,6 +24,11 @@ class AudioAnalyzer:
         return f, Xmag
 
     def calcular_stft(self, x, fs, janela='hann', nperseg=2048, noverlap=1024, fmin=None, fmax=None):
+        """
+        Calcula STFT usando scipy.signal.stft.
+        Retorna (t, f, Zxx) onde Zxx é complexo (tempo x frequência).
+        Permite limitar a faixa de frequências com fmin e fmax.
+        """
         win = get_window(janela, nperseg)
         # boundary=None é importante para bater com o código do cliente
         f, t, Zxx = stft(x, fs=fs, window=win, nperseg=nperseg, noverlap=noverlap, boundary=None)
@@ -28,8 +38,6 @@ class AudioAnalyzer:
             f = f[mask]
             Zxx = Zxx[mask, :]
         return t, f, Zxx
-    
-    # ... (outros métodos) ...
 
     def get_sfft_3d_data(self, x, fs, fmin=20, fmax=20000):
         """
@@ -48,7 +56,9 @@ class AudioAnalyzer:
     
     def calcular_espectrograma(self, x, fs, fmin=None, fmax=None):
         """
-        Retorna t, f, Sxx_db (Convertido para dB para visualização).
+        Calcula espectrograma (potência) usando scipy.signal.spectrogram.
+        Retorna (t, f, Sxx).
+        Permite limitar a faixa de frequências com fmin e fmax.
         """
         janela = 'hann'
         nperseg = 2048
@@ -67,6 +77,10 @@ class AudioAnalyzer:
         return t, f, Sxx_db
 
     def estimar_fundamental_por_pico_espectral(self, Zxx, f, faixa):
+        """
+        Estima a frequência fundamental em cada frame de STFT procurando o pico dominante
+        dentro de uma faixa plausível.
+        """
         mag = np.abs(Zxx)
         fmin, fmax = faixa
         idx_validos = np.where((f >= fmin) & (f <= fmax))[0]
@@ -167,6 +181,7 @@ class AudioAnalyzer:
         
         return t, f0_series
 
+#???
     def get_hilbert_envelope(self, x, fs):
         """
         Calcula a Envoltória (Lógica para o Gráfico Vermelho).
@@ -185,6 +200,7 @@ class AudioAnalyzer:
         envoltoria = np.abs(sinal_analitico)
         return t_reduced, envoltoria
 
+#???
     def get_instantaneous_frequency(self, x, fs):
         """
         Calcula a Frequência Instantânea (Lógica para o Gráfico Verde).
