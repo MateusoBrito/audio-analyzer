@@ -2,10 +2,10 @@ import os
 import librosa
 import numpy as np
 from scipy.io.wavfile import read
-from AudioAnalyzer import AudioAnalyzer
-from PlotFrames import DashboardFrame
-from PlotExporter import PlotExporter
-from View.LoadingWindow import LoadingWindow
+from model.audio_analyzer import AudioAnalyzer
+from view.components.plot_frames import DashboardFrame
+from view.services.plot_exporter import PlotExporter
+from view.windows.loading_window import LoadingWindow
 
 class AppController:
     def __init__(self, ui_plot_container):
@@ -18,6 +18,9 @@ class AppController:
         self.loaded_files = {} 
         self.active_filename = None
         self.plot_list = [] 
+
+        self.zoom_mode_active = False
+        self.cursor_mode_active = False
         
         self.grid_enabled = True
         self.fi = 20
@@ -91,11 +94,6 @@ class AppController:
 
             if "FFT" in self.active_charts:
                 self._update_fft_graph()
-
-            # 1. Waveform
-            if "Waveform" in self.active_charts:
-                t_wave, y_wave = self.analyzer.get_waveform_data(x, fs)
-                self.active_plot_frame.get_frame('Waveform').plot(t_wave, y_wave)
             
             # 2. Espectrograma
             if "Spectrogram" in self.active_charts:
@@ -103,6 +101,11 @@ class AppController:
                     x, fs, fmin=self.fi, fmax=self.fm
                 )
                 self.active_plot_frame.get_frame('Spectrogram').plot(t_spec, f_spec, Sxx_db)
+
+            # 1. Waveform
+            if "Waveform" in self.active_charts:
+                t_wave, y_wave = self.analyzer.get_waveform_data(x, fs)
+                self.active_plot_frame.get_frame('Waveform').plot(t_wave, y_wave)
 
             # 3. Pitch (Via Hilbert - Verde)
             if "Pitch" in self.active_charts:
@@ -124,7 +127,7 @@ class AppController:
                 t_rms, y_rms = self.analyzer.get_rms_data(x, fs)
                 self.active_plot_frame.get_frame('RMS').plot(t_rms, y_rms)
 
-            # 7. FFT e Métricas (Sempre calculamos métricas pois são rápidas e úteis no topo)
+            # 7. FFT e Métricas 
             metrics_data = self.analyzer.get_metrics(x, fs, fmin=self.fi, fmax=self.fm)
             if hasattr(self.active_plot_frame, 'update_metrics'):
                 self.active_plot_frame.update_metrics(metrics_data)
@@ -211,7 +214,6 @@ class AppController:
         else:
             self.active_filename = None
 
-        # OTIMIZAÇÃO: Atualiza a lista de gráficos ativos
         if active_charts is not None:
             self.active_charts = active_charts
             self._update_frames_visibility()
@@ -306,10 +308,30 @@ class AppController:
         
         self.zoom_mode_active = not self.zoom_mode_active
         
+        if self.zoom_mode_active and self.cursor_mode_active:
+            self.cursor_mode_active = False
+            self.active_plot_frame.set_cursor_mode(False)
+
         # Chama o Dashboard para aplicar em todos
         self.active_plot_frame.set_zoom_mode(self.zoom_mode_active)
         
         return self.zoom_mode_active # Retorna estado para mudar cor do botão na View
+
+    def toggle_cursor_mode(self):
+        """Lógica inteligente: Se ligar Cursor, desliga Zoom."""
+        if not self.active_plot_frame: return False
+        
+        self.cursor_mode_active = not self.cursor_mode_active
+        
+        # Aplica Cursor
+        self.active_plot_frame.set_cursor_mode(self.cursor_mode_active)
+        
+        # SE ligou Cursor, DESLIGA Zoom
+        if self.cursor_mode_active and self.zoom_mode_active:
+            self.zoom_mode_active = False
+            self.active_plot_frame.set_zoom_mode(False)
+            
+        return self.cursor_mode_active
 
     def reset_zoom(self):
         """Reseta todos os gráficos."""
@@ -320,52 +342,49 @@ class AppController:
             # self.active_plot_frame.set_zoom_mode(False)
     
     def export_graph(self, dir_path: str):
-        """
-        Exporta PNGs.
-        """
         if not self.plot_list:
             raise ValueError("Nenhum gráfico para exportar!")
         
-        # 1. Dados para o FFT (Multi-linhas)
+        # 1. Prepara dados do FFT (mantido igual)
         fft_export_data = []
-        for plot_item in self.plot_list:
-            filename = plot_item['filename']
-            if filename not in self.loaded_files: continue
-            
-            x_raw, fs_raw = self.loaded_files[filename]
-            
-            # Correção: Usa calcular_fft_basica e pega f, mag
-            f, mag = self.analyzer.calcular_fft_basica(
-                x_raw, fs_raw, fmin=self.fi, fmax=self.fm
-            )
-            
-            # Aplica scale se necessário (opcional na exportação, mas bom para consistência)
-            if self.fft_scale > 1:
-                step = int(self.fft_scale)
-                f = f[::step]
-                mag = mag[::step]
-            
-            fft_export_data.append({
-                'freq': f, 
-                'mag': mag,  # Chave nova: 'mag' em vez de 'L'/'R'
-                'label': plot_item.get('label', filename),
-                'color': plot_item['color']
-            })
+        # Só processa FFT se ele estiver ativo no dashboard
+        if "FFT" in self.active_charts:
+            for plot_item in self.plot_list:
+                filename = plot_item['filename']
+                if filename not in self.loaded_files: continue
+                
+                x_raw, fs_raw = self.loaded_files[filename]
+                f, mag = self.analyzer.calcular_fft_basica(
+                    x_raw, fs_raw, fmin=self.fi, fmax=self.fm
+                )
+                
+                if self.fft_scale > 1:
+                    step = int(self.fft_scale)
+                    f = f[::step]
+                    mag = mag[::step]
+                
+                fft_export_data.append({
+                    'freq': f, 'mag': mag, 
+                    'label': plot_item.get('label', filename),
+                    'color': plot_item['color']
+                })
 
-        # 2. Dados para os outros gráficos (Arquivo Ativo)
+        # 2. Dados do Áudio Ativo
         active_audio_data = None
         if self.active_filename and self.active_filename in self.loaded_files:
             active_audio_data = self.loaded_files[self.active_filename]
 
-        # 3. Salva
+        # 3. Salva passando a lista self.active_charts
         try:
             return self.exporter.save_dashboard(
                 dir_path=dir_path,
-                active_audio=active_audio_data, # Tupla (x, fs)
+                active_audio=active_audio_data,
                 plot_list=fft_export_data,
                 analyzer=self.analyzer,
                 grid_enabled=self.grid_enabled,
-                params={'fi': self.fi, 'fm': self.fm, 'scale': self.fft_scale}
+                params={'fi': self.fi, 'fm': self.fm},
+                active_charts=self.active_charts  # <--- NOVA LINHA IMPORTANTE
             )
         except Exception as e:
-            raise ValueError(f"Erro ao exportar: {e}")
+            print(f"Erro na exportação: {e}")
+            raise e

@@ -155,3 +155,4 @@ class RecordingDialog(ctk.CTkToplevel):
         
         self.callback(os.path.abspath(filepath))
         self.destroy()
+        

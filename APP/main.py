@@ -2,9 +2,9 @@ import customtkinter as ctk
 import sys
 import matplotlib.pyplot as plt
 
-from View.WelcomeScreen import WelcomeScreen
-from View.AnalysisScreen import AnalysisScreen
-from View.EMGScreen import EMGScreen
+from view.screens.welcome_screen import WelcomeScreen
+from view.screens.analysis_screen import AnalysisScreen
+from view.screens.emg_screen import EMGScreen
 
 # Configuração global do tema
 ctk.set_appearance_mode("dark")

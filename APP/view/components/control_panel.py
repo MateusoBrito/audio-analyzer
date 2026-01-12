@@ -63,10 +63,20 @@ class ControlPanel(ctk.CTkFrame):
             text="Modo Zoom", 
             command=self._on_toggle_zoom,
             onvalue=True, 
-            offvalue=False,
+            offvalue=False, 
             font=self.BODY_FONT
         )
-        self.zoom_switch.pack(fill="x", padx=15, pady=10)
+        self.zoom_switch.pack(fill="x", padx=15, pady=(10, 5))
+        
+        self.cursor_switch = ctk.CTkSwitch(
+            self, 
+            text="Inspetor (Clique)",
+            command=self._on_toggle_cursor,
+            onvalue=True, 
+            offvalue=False, 
+            font=self.BODY_FONT
+        )
+        self.cursor_switch.pack(fill="x", padx=15, pady=(5, 10))
         # ---------------------------
 
         # Botão Resetar Zoom (Útil se o usuário se perder)
@@ -162,10 +172,23 @@ class ControlPanel(ctk.CTkFrame):
         self.controller.clean()
     
     def _on_toggle_zoom(self):
-        # O switch retorna 1 (True) ou 0 (False)
-        is_active = self.zoom_switch.get()
-        # Chama o controller (método que criamos antes)
-        self.controller.active_plot_frame.set_zoom_mode(is_active)
+        # 1. Chama o controller. 
+        # Ele já inverte o estado interno, ativa o zoom nos gráficos 
+        # e desliga o modo cursor internamente se precisar.
+        is_zoom_on = self.controller.toggle_zoom_mode()
+        
+        # 2. A única responsabilidade da View aqui é garantir que
+        # o OUTRO botão (Cursor) visualmente desligue se o zoom ligou.
+        if is_zoom_on:
+            self.cursor_switch.deselect()
+
+    def _on_toggle_cursor(self):
+        # Chama o controller
+        is_cursor_on = self.controller.toggle_cursor_mode()
+        
+        # Se o cursor ligou, forçamos o switch do zoom para OFF visualmente
+        if is_cursor_on:
+            self.zoom_switch.deselect()
 
     def _on_reset_zoom(self):
         self.controller.reset_zoom()

@@ -19,6 +19,9 @@ class BasePlotFrame(ctk.CTkFrame):
         self.original_xlim = None
         self.original_ylim = None
 
+        self.cursor_cid = None  # ID da conexão do evento
+        self.annotation = None
+
         widget = self.canvas.get_tk_widget()
         widget.configure(bg=THEME_COLOR, highlightthickness=0) 
         widget.pack(fill="both", expand=True)
@@ -104,6 +107,64 @@ class BasePlotFrame(ctk.CTkFrame):
         # Aplica o Zoom
         ax.set_xlim(min(x1, x2), max(x1, x2))
         ax.set_ylim(min(y1, y2), max(y1, y2))
+        
+        self.canvas.draw_idle()
+    
+    def enable_cursor_mode(self):
+        """Ativa o clique para ver valores."""
+        # Se já estiver conectado, não faz nada
+        if self.cursor_cid is not None: return
+        
+        # Conecta o evento 'button_press_event' à função _on_click
+        self.cursor_cid = self.canvas.mpl_connect('button_press_event', self._on_plot_click)
+
+    def disable_cursor_mode(self):
+        """Desativa o clique e remove anotações."""
+        if self.cursor_cid:
+            self.canvas.mpl_disconnect(self.cursor_cid)
+            self.cursor_cid = None
+        
+        # Remove a anotação visual se ela existir
+        if self.annotation:
+            self.annotation.remove()
+            self.annotation = None
+            self.canvas.draw_idle()
+
+    def _on_plot_click(self, event):
+        """Chamado quando clica no gráfico."""
+        # Verifica se o clique foi dentro dos eixos deste gráfico
+        if event.inaxes != self.fig.gca(): return
+        
+        ax = self.fig.gca()
+        
+        # Ignora gráfico 3D (complicado para anotações simples 2D)
+        if hasattr(ax, 'name') and ax.name == '3d': return
+
+        # Se já tem uma anotação, remove ela para criar uma nova (ou move)
+        if self.annotation:
+            self.annotation.remove()
+        
+        # Pega os dados
+        x_val = event.xdata
+        y_val = event.ydata
+        
+        if x_val is None or y_val is None: return
+
+        # Cria o texto (formata para 2 casas decimais)
+        text = f"X={x_val:.3f}\nY={y_val:.3f}"
+        
+        # Cria a anotação (Tooltip Amarelo)
+        self.annotation = ax.annotate(
+            text,
+            xy=(x_val, y_val),
+            xytext=(10, 10), # Deslocamento leve
+            textcoords="offset points",
+            bbox=dict(boxstyle="round", fc="#f1c40f", ec="none", alpha=0.9), # Caixa amarela
+            color="black",
+            fontweight="bold",
+            fontsize=9,
+            arrowprops=dict(arrowstyle="->", color="#f1c40f") # Setinha
+        )
         
         self.canvas.draw_idle()
 
@@ -302,7 +363,6 @@ class MetricsFrame(ctk.CTkFrame):
         for label in self.labels.values():
             label.configure(text="--")
 
-# 3 hilbert???
 class HilbertFreqPlotFrame(BasePlotFrame):
     def plot(self, times, freq_data):
         self.clear()
@@ -316,20 +376,25 @@ class HilbertFreqPlotFrame(BasePlotFrame):
             else:
                 spine.set_visible(False)
 
-        # --- SEU ESTILO: COR VERDE ---
-        ax.plot(times, freq_data, color='green', linewidth=0.8, label='Freq. Instantânea')
+        # Plot VERDE
+        # Downsampling visual para performance
+        if len(freq_data) > 10000:
+            step = int(len(freq_data) // 10000)
+            ax.plot(times[::step], freq_data[::step], color='green', linewidth=0.8, label='Freq. Instantânea')
+        else:
+            ax.plot(times, freq_data, color='green', linewidth=0.8, label='Freq. Instantânea')
         
         ax.set_title("Pitch estimado via Transformada de Hilbert", color="white")
         ax.set_xlabel("Tempo (s)", color="white")
         ax.set_ylabel("Frequência (Hz)", color="white")
         
-        # Limita eixo Y para visualização melhor (opcional, remove ruídos extremos)
+        # Limita para visualização mais limpa
         ax.set_ylim(0, 22000) 
         
         self.draw()
 
-class HilbertPlotFrame(BasePlotFrame):
-    def plot(self, samples, envelope_data):
+class HilbertEnvelopePlotFrame(BasePlotFrame):
+    def plot(self, times, envelope_data):
         self.clear()
         ax = self.fig.add_subplot(111)
         ax.set_facecolor(THEME_COLOR)
@@ -341,32 +406,18 @@ class HilbertPlotFrame(BasePlotFrame):
             else:
                 spine.set_visible(False)
 
-        # --- SEU ESTILO: VERMELHO TRACEJADO ---
-        ax.plot(samples, envelope_data, color='red', linestyle='--', label='Envoltória')
+        # Plot VERMELHO TRACEJADO
+        if len(envelope_data) > 10000:
+            step = int(len(envelope_data) // 10000)
+            ax.plot(times[::step], envelope_data[::step], color='red', linestyle='--', label='Envoltória')
+        else:
+            ax.plot(times, envelope_data, color='red', linestyle='--', label='Envoltória')
         
         ax.legend(fontsize=8, framealpha=0.0, labelcolor='white')
         ax.set_title("Sinal e sua Envoltória", color="white")
         ax.set_xlabel("Tempo (s)", color="white")
         ax.set_ylabel("Amplitude", color="white")
         
-        self.draw()
-
-class HilbertPlotFrame(BasePlotFrame):
-    def plot(self, samples, envelope_data):
-        self.clear()
-        ax = self.fig.add_subplot(111)
-        ax.set_facecolor(THEME_COLOR)
-        
-        ax.tick_params(colors="white")
-        ax.spines["bottom"].set_color("white")
-        ax.spines["left"].set_color("white")
-        ax.spines["top"].set_visible(False)
-        ax.spines["right"].set_visible(False)
-
-        ax.plot(samples, envelope_data, color='purple')
-        ax.set_title("Envelope de Hilbert", color="white")
-        ax.set_xlabel("Amostras", color="white")
-        ax.set_ylabel("Amplitude", color="white")
         self.draw()
 
 class DashboardFrame(ctk.CTkScrollableFrame):
@@ -384,17 +435,17 @@ class DashboardFrame(ctk.CTkScrollableFrame):
         # --- CRIAÇÃO DOS FRAMES (Sem posicionar ainda) ---
         # Apenas instanciamos aqui. O AppController vai decidir onde colocar com .grid()
         self.frames['FFT'] = FFTPlotFrame(self, height=600)
-        self.frames['Waveform'] = WaveformPlotFrame(self)
         self.frames['Spectrogram'] = SpectrogramPlotFrame(self)
+        self.frames['Waveform'] = WaveformPlotFrame(self)
         self.frames['Pitch'] = PitchPlotFrame(self)
         self.frames['SFFT3D'] = SFFT3DPlotFrame(self, height=500)
-        self.frames['Hilbert'] = HilbertPlotFrame(self)
+        self.frames['Hilbert'] = HilbertEnvelopePlotFrame(self)
         self.frames['HilbertFreq'] = HilbertFreqPlotFrame(self)
         self.frames['RMS'] = RMSPlotFrame(self)
         
         # Configura altura inicial (opcional, pois o grid ajusta)
-        self.frames['Waveform'].configure(height=250)
         self.frames['Spectrogram'].configure(height=250)
+        self.frames['Waveform'].configure(height=250)
         self.frames['Pitch'].configure(height=250)
         self.frames['Hilbert'].configure(height=250)
         self.frames['HilbertFreq'].configure(height=250)
@@ -432,3 +483,11 @@ class DashboardFrame(ctk.CTkScrollableFrame):
         """Reseta a visão de todos."""
         for frame in self.frames.values():
             frame.reset_zoom()
+    
+    def set_cursor_mode(self, enabled):
+        """Ativa/Desativa modo inspeção em TODOS os gráficos."""
+        for frame in self.frames.values():
+            if enabled:
+                frame.enable_cursor_mode()
+            else:
+                frame.disable_cursor_mode()

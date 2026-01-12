@@ -4,10 +4,10 @@ from PIL import Image
 import sys
 import os
 
-from AppController import AppController
-from View.ControlPanel import ControlPanel
-from View.FileSelectionDialog import FileSelectionDialog
-from View.RecordingDialog import RecordingDialog
+from controller.app_controller import AppController
+from view.components.control_panel import ControlPanel
+from view.windows.file_selection_window import FileSelectionDialog
+from view.windows.recording_window import RecordingDialog
 
 def resource_path(relative_path):
     """Obtém o caminho absoluto para o recurso, funciona para dev e para o PyInstaller"""
@@ -51,19 +51,19 @@ class AnalysisScreen(ctk.CTkFrame):
         self.icons = {}
         try:
             # Carrega as imagens usando o caminho absoluto
-            img_upload = resource_path(os.path.join("images", "upload.png"))
+            img_upload = resource_path(os.path.join("View/images", "upload.png"))
             self.icons['upload'] = ctk.CTkImage(Image.open(img_upload), size=(24, 24))
-            img_graph = resource_path(os.path.join("images", "analysis.png"))
+            img_graph = resource_path(os.path.join("View/images", "analysis.png"))
             self.icons['analyze'] = ctk.CTkImage(Image.open(img_graph), size=(24, 24))
-            img_export = resource_path(os.path.join("images", "export.png"))
+            img_export = resource_path(os.path.join("View/images", "export.png"))
             self.icons['export'] = ctk.CTkImage(Image.open(img_export), size=(24, 24))
-            img_home = resource_path(os.path.join("images", "home.png"))
+            img_home = resource_path(os.path.join("View/images", "home.png"))
             self.icons['home'] = ctk.CTkImage(Image.open(img_home), size=(24, 24))
-            img_audio = resource_path(os.path.join("images", "phone.png"))
+            img_audio = resource_path(os.path.join("View/images", "phone.png"))
             self.icons['phone'] = ctk.CTkImage(Image.open(img_audio), size=(24, 24))
 
             # Logo (tamanho diferente)
-            img_logo = resource_path(os.path.join("images", "Logo.png"))
+            img_logo = resource_path(os.path.join("View/images", "Logo.png"))
             self.icons['logo'] = ctk.CTkImage(Image.open(img_logo), size=(101, 50))
             
         except Exception as e:
@@ -150,8 +150,6 @@ class AnalysisScreen(ctk.CTkFrame):
             filenames=available_files, 
             callback=self._on_files_selected
         )
-
-    # Em AnalysisScreen.py
 
     def _on_files_selected(self, selection_data, main_file, active_charts): # Adicionado active_charts
         """

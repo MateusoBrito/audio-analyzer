@@ -110,23 +110,6 @@ class AudioAnalyzer:
         times = np.linspace(0, len(x) / fs, num=len(x))
         return times, x
     
-    def get_hilbert_envelope(self, x, fs):
-        """
-        Usa hilbert para envoltória. Aplica downsampling ANTES para não travar.
-        """
-        target_points = 8000
-        if len(x) > target_points:
-            step = len(x) // target_points
-            x_reduced = x[::step]
-            t_reduced = np.linspace(0, len(x)/fs, len(x_reduced))
-        else:
-            x_reduced = x
-            t_reduced = np.linspace(0, len(x)/fs, len(x))
-            
-        sinal_analitico = hilbert(x_reduced)
-        envoltoria = np.abs(sinal_analitico)
-        return t_reduced, envoltoria
-    
     def get_rms_data(self, x, fs):
         # Implementação simples de RMS deslizante (Numpy puro)
         frame_len = 2048
@@ -181,7 +164,6 @@ class AudioAnalyzer:
         
         return t, f0_series
 
-#???
     def get_hilbert_envelope(self, x, fs):
         """
         Calcula a Envoltória (Lógica para o Gráfico Vermelho).
@@ -200,7 +182,6 @@ class AudioAnalyzer:
         envoltoria = np.abs(sinal_analitico)
         return t_reduced, envoltoria
 
-#???
     def get_instantaneous_frequency(self, x, fs):
         """
         Calcula a Frequência Instantânea (Lógica para o Gráfico Verde).
