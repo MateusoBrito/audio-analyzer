@@ -1,6 +1,4 @@
 import os
-import librosa
-import numpy as np
 from scipy.io.wavfile import read
 from model.audio_analyzer import AudioAnalyzer
 from view.components.plot_frames import DashboardFrame
