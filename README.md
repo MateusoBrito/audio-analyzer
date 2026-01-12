@@ -35,7 +35,7 @@ O **Sound Analyzer Pro** é um software desktop desenvolvido para preencher a la
 | Interface Gráfica | CustomTkinter (CTk) |
 | Processamento (DSP) | NumPy, SciPy |
 | Plotagem | Matplotlib |
-| Áudio I/O | wavfile/sounddevice |
+| Áudio I/O | SoundDevice / SoundFile |
 | Conectividade Hardware | PySerial (Bluetooth) |
 
 ---
