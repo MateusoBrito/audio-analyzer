@@ -51,19 +51,19 @@ class AnalysisScreen(ctk.CTkFrame):
         self.icons = {}
         try:
             # Carrega as imagens usando o caminho absoluto
-            img_upload = resource_path(os.path.join("View/images", "upload.png"))
+            img_upload = resource_path(os.path.join("app/view/images", "upload.png"))
             self.icons['upload'] = ctk.CTkImage(Image.open(img_upload), size=(24, 24))
-            img_graph = resource_path(os.path.join("View/images", "analysis.png"))
+            img_graph = resource_path(os.path.join("app/view/images", "analysis.png"))
             self.icons['analyze'] = ctk.CTkImage(Image.open(img_graph), size=(24, 24))
-            img_export = resource_path(os.path.join("View/images", "export.png"))
+            img_export = resource_path(os.path.join("app/view/images", "export.png"))
             self.icons['export'] = ctk.CTkImage(Image.open(img_export), size=(24, 24))
-            img_home = resource_path(os.path.join("View/images", "home.png"))
+            img_home = resource_path(os.path.join("app/view/images", "home.png"))
             self.icons['home'] = ctk.CTkImage(Image.open(img_home), size=(24, 24))
-            img_audio = resource_path(os.path.join("View/images", "phone.png"))
+            img_audio = resource_path(os.path.join("app/view/images", "phone.png"))
             self.icons['phone'] = ctk.CTkImage(Image.open(img_audio), size=(24, 24))
 
             # Logo (tamanho diferente)
-            img_logo = resource_path(os.path.join("View/images", "Logo.png"))
+            img_logo = resource_path(os.path.join("app/view/images", "Logo.png"))
             self.icons['logo'] = ctk.CTkImage(Image.open(img_logo), size=(101, 50))
             
         except Exception as e:

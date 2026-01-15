@@ -134,6 +134,7 @@ class AppController:
             if hasattr(self.active_plot_frame, 'update_all_grids'):
                 self.active_plot_frame.update_all_grids(self.grid_enabled)
             
+            self.active_plot_frame.update_layout(self.active_charts)
             self.active_plot_frame.draw()
             
         except Exception as e:
@@ -225,8 +226,8 @@ class AppController:
         # 1. Ordem de exibição desejada
         ordered_charts = [
             "FFT",
-            "Waveform", 
-            "Spectrogram", 
+            "Spectrogram",
+            "Waveform",  
             "Pitch", 
             "SFFT3D", 
             "Hilbert", 
