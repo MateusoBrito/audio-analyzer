@@ -25,9 +25,9 @@ class WelcomeScreen(ctk.CTkFrame):
         self.icon_audio = None
         self.icon_emg = None
         try:
-            img_audio = resource_path(os.path.join("app/view/images", "audio_wave.png"))
+            img_audio = resource_path(os.path.join("view/images", "audio_wave.png"))
             self.icon_audio = ctk.CTkImage(Image.open(img_audio), size=(32, 32)) # Ícones ligeiramente menores para elegância
-            img_emg = resource_path(os.path.join("app/view/images", "emg_chip.png"))
+            img_emg = resource_path(os.path.join("view/images", "emg_chip.png"))
             self.icon_emg = ctk.CTkImage(Image.open(img_emg), size=(32, 32))          
         except Exception as e:
             print(f"Aviso: Imagens não encontradas: {e}")

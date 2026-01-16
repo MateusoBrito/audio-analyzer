@@ -141,8 +141,8 @@ SoundAnalyzerPro/
 
 ```bash
 # 1. Clonar o repositório
-git clone https://github.com/seu-usuario/SoundAnalyzerPro.git
-cd SoundAnalyzerPro
+git clone https://github.com/MateusoBrito/audio-analyzer
+cd app
 
 # 2. Criar ambiente virtual (Recomendado)
 python -m venv .venv
@@ -157,7 +157,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 
 # 4. Executar a aplicação
-python app/main.py
+python main.py
 ```
 
 ---

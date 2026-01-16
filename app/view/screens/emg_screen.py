@@ -70,26 +70,26 @@ class EMGScreen(ctk.CTkFrame):
 
         try:
             # Carrega cada ícone usando o caminho corrigido
-            self.icon_settings = ctk.CTkImage(Image.open(self.resource_path("app/view/images/settings.png")), size=(24, 24))
-            self.icon_load = ctk.CTkImage(Image.open(self.resource_path("app/view/images/upload.png")), size=(24, 24))
-            self.icon_help = ctk.CTkImage(Image.open(self.resource_path("app/view/images/about.png")), size=(24, 24))
-            self.icon_menu = ctk.CTkImage(Image.open(self.resource_path("app/view/images/home.png")), size=(24, 24))
+            self.icon_settings = ctk.CTkImage(Image.open(self.resource_path("view/images/settings.png")), size=(24, 24))
+            self.icon_load = ctk.CTkImage(Image.open(self.resource_path("view/images/upload.png")), size=(24, 24))
+            self.icon_help = ctk.CTkImage(Image.open(self.resource_path("view/images/about.png")), size=(24, 24))
+            self.icon_menu = ctk.CTkImage(Image.open(self.resource_path("view/images/home.png")), size=(24, 24))
             
             # Ícones de exportação
-            self.icon_save_ch1 = ctk.CTkImage(Image.open(self.resource_path("app/view/images/export.png")), size=(24, 24))
-            self.icon_save_ch2 = ctk.CTkImage(Image.open(self.resource_path("app/view/images/export.png")), size=(24, 24))
-            self.icon_save_both = ctk.CTkImage(Image.open(self.resource_path("app/view/images/export.png")), size=(24, 24))
+            self.icon_save_ch1 = ctk.CTkImage(Image.open(self.resource_path("view/images/export.png")), size=(24, 24))
+            self.icon_save_ch2 = ctk.CTkImage(Image.open(self.resource_path("view/images/export.png")), size=(24, 24))
+            self.icon_save_both = ctk.CTkImage(Image.open(self.resource_path("view/images/export.png")), size=(24, 24))
             
             # Ícones de controle e hardware
-            self.icon_bluetooth = ctk.CTkImage(Image.open(self.resource_path("app/view/images/bluetooth.png")), size=(24, 24))
-            self.icon_refresh = ctk.CTkImage(Image.open(self.resource_path("app/view/images/refresh.png")), size=(24, 24))
-            self.icon_connect = ctk.CTkImage(Image.open(self.resource_path("app/view/images/connect.png")), size=(24, 24))
-            self.icon_disconnect = ctk.CTkImage(Image.open(self.resource_path("app/view/images/disconnect.png")), size=(24, 24))
+            self.icon_bluetooth = ctk.CTkImage(Image.open(self.resource_path("view/images/bluetooth.png")), size=(24, 24))
+            self.icon_refresh = ctk.CTkImage(Image.open(self.resource_path("view/images/refresh.png")), size=(24, 24))
+            self.icon_connect = ctk.CTkImage(Image.open(self.resource_path("view/images/connect.png")), size=(24, 24))
+            self.icon_disconnect = ctk.CTkImage(Image.open(self.resource_path("view/images/disconnect.png")), size=(24, 24))
             
             # Gravador e Player
-            self.icon_record = ctk.CTkImage(Image.open(self.resource_path("app/view/images/record.png")), size=(24, 24))
-            self.icon_stop = ctk.CTkImage(Image.open(self.resource_path("app/view/images/stop.png")), size=(24, 24))
-            self.icon_analysis = ctk.CTkImage(Image.open(self.resource_path("app/view/images/analysis.png")), size=(24, 24))
+            self.icon_record = ctk.CTkImage(Image.open(self.resource_path("view/images/record.png")), size=(24, 24))
+            self.icon_stop = ctk.CTkImage(Image.open(self.resource_path("view/images/stop.png")), size=(24, 24))
+            self.icon_analysis = ctk.CTkImage(Image.open(self.resource_path("view/images/analysis.png")), size=(24, 24))
             
         except Exception as e:
             print(f"Aviso (EMGScreen): Não foi possível carregar ícones. Erro: {e}")
