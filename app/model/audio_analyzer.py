@@ -207,3 +207,16 @@ class AudioAnalyzer:
         
         # diff perde 1 ponto, ajustamos o tempo
         return t_reduced[1:], freq_inst
+
+    def get_pitch_variation_stft(self, x, fs,
+                           nperseg=2048, noverlap=1024):
+
+        # STFT
+        win = get_window('hann', nperseg)
+        f, t, Zxx = stft(x, fs=fs, window=win, nperseg=nperseg,
+                        noverlap=noverlap, boundary=None)
+
+        # Frequência dominante por janela
+        freq_dominante = np.array([f[np.argmax(np.abs(Zxx[:, i]))] for i in range(Zxx.shape[1])])
+
+        return t,freq_dominante

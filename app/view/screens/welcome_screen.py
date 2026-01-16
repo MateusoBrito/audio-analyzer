@@ -13,67 +13,87 @@ def resource_path(relative_path):
 
 class WelcomeScreen(ctk.CTkFrame):
     def __init__(self, parent, nav_controller):
-        super().__init__(parent, fg_color="#1a1a1a") # Fundo geral escuro
+        super().__init__(parent, fg_color="#1a1a1a")
         self.nav_controller = nav_controller
         
-        # Definição de Cores do Tema
-        self.accent_color = "#ECEFF1"  # Azul suave
-        self.card_bg = "#212121"       # Cinza um pouco mais claro que o fundo
+        self.accent_color = "#ECEFF1"
+        self.card_bg = "#212121"
         self.text_secondary = "#a0a0a0"
         
-        # Carregamento de imagens
+        # --- CARREGAMENTO DE IMAGENS ---
         self.icon_audio = None
         self.icon_emg = None
+        self.logo_main = None
+        self.logo_ppg = None
+        self.logo_ufsj = None
+
         try:
-            img_audio = resource_path(os.path.join("view/images", "audio_wave.png"))
-            self.icon_audio = ctk.CTkImage(Image.open(img_audio), size=(32, 32)) # Ícones ligeiramente menores para elegância
-            img_emg = resource_path(os.path.join("view/images", "emg_chip.png"))
-            self.icon_emg = ctk.CTkImage(Image.open(img_emg), size=(32, 32))          
+            # Caminho base das imagens
+            img_dir = "view/images"
+
+            # 1. Ícones (Podem ser quadrados fixos mesmo, geralmente ícones são 1:1)
+            self.icon_audio = ctk.CTkImage(Image.open(resource_path(os.path.join(img_dir, "audio_wave.png"))), size=(32, 32))
+            self.icon_emg = ctk.CTkImage(Image.open(resource_path(os.path.join(img_dir, "emg_chip.png"))), size=(32, 32))
+
+            # 2. Carregar Logos Respeitando Proporção
+            # Definimos apenas a ALTURA desejada, a largura se ajusta sozinha
+            
+            # Logo Principal: Altura 80px
+            self.logo_main = self.load_image_fixed_height(os.path.join(img_dir, "Logo.png"), fixed_height=130)
+            
+            # Logos Rodapé: Altura 50px (para ficarem alinhadas)
+            self.logo_ppg = self.load_image_fixed_height(os.path.join(img_dir, "dmusic.jpeg"), fixed_height=70)
+            self.logo_ufsj = self.load_image_fixed_height(os.path.join(img_dir, "logo-ufsj.png"), fixed_height=70)
+
         except Exception as e:
-            print(f"Aviso: Imagens não encontradas: {e}")
+            print(f"Erro ao carregar imagens: {e}")
 
         self._build_ui()
 
+    def load_image_fixed_height(self, relative_path, fixed_height):
+        """
+        Carrega uma imagem e calcula a largura automaticamente para não distorcer.
+        """
+        try:
+            full_path = resource_path(relative_path)
+            pil_img = Image.open(full_path)
+            
+            w_orig, h_orig = pil_img.size
+            aspect_ratio = w_orig / h_orig
+            
+            new_width = int(fixed_height * aspect_ratio)
+            
+            return ctk.CTkImage(pil_img, size=(new_width, fixed_height))
+        except Exception as e:
+            print(f"Não foi possível carregar {relative_path}: {e}")
+            return None
+
     def _build_ui(self):
         # --- CARD CENTRAL ---
-        # Usamos place para garantir que fique EXATAMENTE no centro, independente do tamanho da janela
         self.main_card = ctk.CTkFrame(
             self, 
             fg_color=self.card_bg, 
             corner_radius=25,
             border_width=2,
-            border_color="#333333" # Borda sutil
+            border_color="#333333"
         )
         self.main_card.place(relx=0.5, rely=0.5, anchor="center")
 
-        # Container interno para dar padding (margem interna)
         content_frame = ctk.CTkFrame(self.main_card, fg_color="transparent")
-        content_frame.pack(padx=60, pady=50)
+        content_frame.pack(padx=60, pady=40)
 
-        # --- SEÇÃO DE CABEÇALHO ---
+        # --- LOGO PRINCIPAL ---
+        if self.logo_main:
+            ctk.CTkLabel(content_frame, text="", image=self.logo_main).pack(pady=(0, 15))
+
         ctk.CTkLabel(
             content_frame, 
-            text="BEM-VINDO AO", 
-            font=("Roboto Medium", 14), 
+            text="BEM-VINDO AO SISTEMA", 
+            font=("Roboto Medium", 12), 
             text_color=self.text_secondary,
             anchor="center"
         ).pack(pady=(0, 10))
 
-        # Frame para juntar as duas cores do título no centro
-        title_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
-        title_frame.pack(pady=(0, 20))
-        
-        ctk.CTkLabel(
-            title_frame, text="Sound", font=("Arial", 48, "bold"), 
-            text_color=self.accent_color
-        ).pack(side="left")
-        
-        ctk.CTkLabel(
-            title_frame, text="Analyzer", font=("Arial", 48, "bold"), 
-            text_color="white"
-        ).pack(side="left", padx=(8,0))
-
-        # Descrição
         description = (
             "Explore o universo sonoro e bioelétrico.\n"
             "Visualize espectrogramas e dados em tempo real."
@@ -81,53 +101,56 @@ class WelcomeScreen(ctk.CTkFrame):
         ctk.CTkLabel(
             content_frame, 
             text=description, 
-            font=("Arial", 16), 
+            font=("Arial", 14), 
             justify="center",
             text_color=self.text_secondary
-        ).pack(pady=(0, 40))
+        ).pack(pady=(0, 30))
 
-        # --- SEÇÃO DE BOTÕES ---
-        
-        # Botão Principal (Com destaque de borda e cor)
+        # --- BOTÕES ---
         btn_audio = ctk.CTkButton(
             content_frame,
             text=" Análise de Áudio",
             image=self.icon_audio,
             compound="left",
             command=lambda: self.nav_controller.show_frame("AnalysisScreen"),
-            width=320, 
-            height=60,
-            font=("Arial", 16, "bold"),
-            fg_color="#2b2b2b", 
-            hover_color="#3a3a3a",    
-            border_width=2, 
-            border_color=self.accent_color,
-            corner_radius=15
+            width=280, height=55, font=("Arial", 15, "bold"),
+            fg_color="#2b2b2b", hover_color="#3a3a3a",    
+            border_width=2, border_color=self.accent_color, corner_radius=15
         )
         btn_audio.pack(pady=(0, 15))
 
-        # Botão Secundário (Desativado / Mais discreto)
         btn_emg = ctk.CTkButton(
             content_frame,
             text=" Análise EMG",
             image=self.icon_emg,
             compound="left",
             command=lambda: self.nav_controller.show_frame("EMGScreen"),
-            width=320, 
-            height=60,
-            font=("Arial", 16, "bold"),
-            fg_color="#2b2b2b",      
-            text_color_disabled="#555555",
-            border_width=2, 
-            border_color=self.accent_color,
-            corner_radius=15
+            width=280, height=55, font=("Arial", 15, "bold"),
+            fg_color="#2b2b2b", text_color_disabled="#555555",
+            border_width=2, border_color=self.accent_color, corner_radius=15
         )
         btn_emg.pack()
 
-        # Rodapézinho estético (opcional)
-        ctk.CTkLabel(
-            content_frame,
-            text="v1.0.0",
-            font=("Arial", 10),
-            text_color="#404040"
-        ).pack(pady=(30, 0))
+        ctk.CTkLabel(content_frame, text="v1.1.0", font=("Arial", 10), text_color="#404040").pack(pady=(20, 0))
+
+        # --- RODAPÉ INSTITUCIONAL ---
+        footer_frame = ctk.CTkFrame(self, fg_color="transparent")
+        footer_frame.pack(side="bottom", pady=25)
+
+        # Container interno para centralizar as logos juntas
+        logos_container = ctk.CTkFrame(footer_frame, fg_color="transparent")
+        logos_container.pack()
+
+        # Logo UFSJ (Esquerda)
+        if self.logo_ufsj:
+            lbl_ufsj = ctk.CTkLabel(logos_container, text="", image=self.logo_ufsj)
+            lbl_ufsj.pack(side="left", padx=20)
+
+        # Divisória vertical (opcional)
+        separator = ctk.CTkFrame(logos_container, width=3, height=60, fg_color="#444444")
+        separator.pack(side="left")
+
+        # Logo PPGMUSI (Direita)
+        if self.logo_ppg:
+            lbl_ppg = ctk.CTkLabel(logos_container, text="", image=self.logo_ppg)
+            lbl_ppg.pack(side="left", padx=20)

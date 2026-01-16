@@ -20,8 +20,9 @@ class FileSelectionDialog(ctk.CTkToplevel):
             "Pitch": ctk.IntVar(value=1),
             "SFFT3D": ctk.IntVar(value=1),
             "Hilbert": ctk.IntVar(value=1),
+            "PitchSTFT": ctk.IntVar(value=1),
             "FFT": ctk.IntVar(value=1),
-            "RMS": ctk.IntVar(value=0) # RMS desativado por padrão (opcional)
+            "RMS": ctk.IntVar(value=1)
         }
 
         # Configurações da Janela
@@ -57,6 +58,7 @@ class FileSelectionDialog(ctk.CTkToplevel):
             ("Espectrograma (2D)", "Spectrogram"),
             ("Pitch / Afinação", "Pitch"),
             ("Espectro 3D (SFFT)", "SFFT3D"),
+            ("Variação de Pitch (STFT)", "PitchSTFT"),
             ("Envoltória (Hilbert)", "Hilbert"),
             ("Espectro FFT (Freq)", "FFT"),
             ("RMS (Energia)", "RMS")

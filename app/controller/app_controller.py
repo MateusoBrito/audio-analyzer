@@ -119,6 +119,10 @@ class AppController:
             if "Hilbert" in self.active_charts:
                 t_hilbert, env_hilbert = self.analyzer.get_hilbert_envelope(x, fs)
                 self.active_plot_frame.get_frame('Hilbert').plot(t_hilbert, env_hilbert)
+            
+            if "PitchSTFT" in self.active_charts:
+                t_stft, f_stft = self.analyzer.get_pitch_variation_stft(x, fs)
+                self.active_plot_frame.get_frame('PitchSTFT').plot(t_stft, f_stft)
 
             # 6. RMS
             if "RMS" in self.active_charts:
@@ -231,6 +235,7 @@ class AppController:
             "Pitch", 
             "SFFT3D", 
             "Hilbert", 
+            "PitchSTFT",
             "HilbertFreq",  
             "RMS"
         ]

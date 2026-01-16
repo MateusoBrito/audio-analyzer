@@ -272,7 +272,7 @@ class PitchPlotFrame(BasePlotFrame):
         # Plot da linha de Pitch (Azul igual ao cliente)
         ax.plot(times, f0_data, color='#448AFF', linewidth=1.2, label="F0 (Hz)")
         
-        ax.set_title("Variação da Afinação (Pitch)", color="white")
+        ax.set_title("Frequência Instantânea (Pitch)", color="white")
         ax.set_xlabel("Tempo (s)", color="white")
         ax.set_ylabel("Frequência (Hz)", color="white")
         
@@ -420,6 +420,37 @@ class HilbertEnvelopePlotFrame(BasePlotFrame):
         
         self.draw()
 
+class PitchSTFTPlotFrame(BasePlotFrame):
+    def plot(self, t, freq_dominante):
+        # 1. Limpa a figura inteira (herdado de BasePlotFrame)
+        self.clear()
+        
+        # 2. Cria o eixo (Subplot) explicitamente
+        ax = self.fig.add_subplot(111)
+        
+        # 3. Aplica o Tema Escuro (Fundo)
+        ax.set_facecolor(THEME_COLOR)
+        
+        # 4. Estilização dos Eixos (Cor Branca para texto e linhas)
+        ax.tick_params(colors="white")
+        for spine in ax.spines.values():
+            if spine.spine_type in ['bottom', 'left']:
+                spine.set_color("white")
+            else:
+                spine.set_visible(False) # Esconde bordas superior e direita
+
+        # 5. Plotagem dos Dados
+        # Sugestão: Use '#448AFF' (Azul claro) ou 'cyan' para contrastar com o fundo escuro
+        ax.plot(t, freq_dominante, color='#448AFF', linewidth=1.5)
+        
+        # 6. Títulos e Labels (Cor Branca)
+        ax.set_title("Variação da Afinação (Pitch via STFT)", color="white")
+        ax.set_ylabel("Frequência (Hz)", color="white")
+        ax.set_xlabel("Tempo (s)", color="white")
+        
+        # 7. Renderiza
+        self.draw()
+    
 class DashboardFrame(ctk.CTkScrollableFrame):
     def __init__(self, master):
         super().__init__(master, label_text="Dashboard de Análise")
@@ -442,6 +473,7 @@ class DashboardFrame(ctk.CTkScrollableFrame):
         self.frames['Hilbert'] = HilbertEnvelopePlotFrame(self)
         self.frames['HilbertFreq'] = HilbertFreqPlotFrame(self)
         self.frames['RMS'] = RMSPlotFrame(self)
+        self.frames['PitchSTFT'] = PitchSTFTPlotFrame(self)
         
         # Configura altura inicial (opcional, pois o grid ajusta)
         self.frames['Spectrogram'].configure(height=250)
@@ -450,6 +482,7 @@ class DashboardFrame(ctk.CTkScrollableFrame):
         self.frames['Hilbert'].configure(height=250)
         self.frames['HilbertFreq'].configure(height=250)
         self.frames['RMS'].configure(height=250)
+        self.frames['PitchSTFT'].configure(height=250)
 
     def get_frame(self, name):
         return self.frames.get(name)
